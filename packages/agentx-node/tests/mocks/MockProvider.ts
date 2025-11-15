@@ -25,6 +25,7 @@ export interface MockProviderOptions {
 
 export class MockProvider implements AgentProvider {
   readonly sessionId: string;
+  providerSessionId: string | null = null; // Mock doesn't use real provider session
   private aborted = false;
   private options: MockProviderOptions;
   private config: AgentConfig;
@@ -34,12 +35,11 @@ export class MockProvider implements AgentProvider {
     this.config = config;
     this.options = options;
     this.sessionId = this.generateSessionId();
+    // For mock, provider session ID is same as session ID
+    this.providerSessionId = this.sessionId;
   }
 
-  async *send(
-    message: string,
-    messages: ReadonlyArray<Message>
-  ): AsyncGenerator<AgentEvent> {
+  async *send(message: string, messages: ReadonlyArray<Message>): AsyncGenerator<AgentEvent> {
     this.aborted = false;
 
     // Add user message to internal history
@@ -131,10 +131,13 @@ export class MockProvider implements AgentProvider {
     // Simple context-aware responses for testing
     if (!this.options.customResponse) {
       // Check if asking about name
-      if (message.toLowerCase().includes("my name") || message.toLowerCase().includes("what's my name")) {
+      if (
+        message.toLowerCase().includes("my name") ||
+        message.toLowerCase().includes("what's my name")
+      ) {
         // Look for name in previous messages
-        const nameMatch = messages.find(m =>
-          m.role === "user" && m.content.toLowerCase().includes("my name is")
+        const nameMatch = messages.find(
+          (m) => m.role === "user" && m.content.toLowerCase().includes("my name is")
         );
         if (nameMatch) {
           const match = nameMatch.content.match(/my name is (\w+)/i);

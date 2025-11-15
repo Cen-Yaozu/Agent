@@ -13,10 +13,10 @@ import type { Message } from "@deepractice-ai/agentx-types";
 
 export class ClaudeProvider implements AgentProvider {
   readonly sessionId: string;
+  providerSessionId: string | null = null; // Claude SDK's real session ID
   private abortController: AbortController;
   private config: AgentConfig;
   private currentQuery: Query | null = null;
-  private isFirstMessage: boolean = true;
   private internalMessages: Message[] = []; // Internal message history from SDK events
 
   constructor(config: AgentConfig) {
@@ -46,18 +46,20 @@ export class ClaudeProvider implements AgentProvider {
           abortController: this.abortController,
           mcpServers: this.transformMcpConfig(this.config.mcp),
           includePartialMessages: true, // Enable stream_event and user message events
-          // Resume previous session to maintain context (Claude SDK uses file-based persistence)
-          resume: this.isFirstMessage ? undefined : this.sessionId,
+          // Resume with provider's session ID (SDK's real session ID)
+          resume: this.providerSessionId || undefined,
         },
       });
-
-      // Mark that we've sent the first message
-      this.isFirstMessage = false;
 
       // Stream SDK messages and transform to AgentEvent
       for await (const sdkMessage of this.currentQuery) {
         const agentEvent = this.transformToAgentEvent(sdkMessage);
         if (agentEvent) {
+          // Capture provider session ID from system init event
+          if (agentEvent.type === "system" && agentEvent.subtype === "init") {
+            this.providerSessionId = agentEvent.sessionId;
+          }
+
           // Capture messages to internal history
           this.captureMessage(agentEvent);
           yield agentEvent;
@@ -95,7 +97,8 @@ export class ClaudeProvider implements AgentProvider {
    * This is where the adaptation happens - from SDK format to our standard
    */
   private transformToAgentEvent(sdkMessage: SDKMessage): AgentEvent | null {
-    const uuid = sdkMessage.uuid ?? `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const uuid =
+      sdkMessage.uuid ?? `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const timestamp = Date.now();
 
     switch (sdkMessage.type) {
@@ -162,7 +165,8 @@ export class ClaudeProvider implements AgentProvider {
           };
         } else {
           // Filter to only allowed error subtypes
-          const subtype = sdkMessage.subtype === "error_max_turns" ? "error_max_turns" : "error_during_execution";
+          const subtype =
+            sdkMessage.subtype === "error_max_turns" ? "error_max_turns" : "error_during_execution";
           return {
             type: "result",
             subtype,
@@ -189,7 +193,7 @@ export class ClaudeProvider implements AgentProvider {
             type: "system",
             subtype: "init",
             uuid,
-            sessionId: this.sessionId,
+            sessionId: sdkMessage.session_id, // Use SDK's real session ID
             model: sdkMessage.model,
             tools: sdkMessage.tools,
             cwd: sdkMessage.cwd,

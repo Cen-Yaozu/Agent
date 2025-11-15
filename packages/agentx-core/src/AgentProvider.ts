@@ -26,9 +26,27 @@ import type { AgentConfig, AgentEvent } from "@deepractice-ai/agentx-api";
  */
 export interface AgentProvider {
   /**
-   * Session ID for this provider instance
+   * Session ID for this provider instance (Agent's session identifier)
    */
   readonly sessionId: string;
+
+  /**
+   * Provider's internal session ID (e.g., SDK's real session ID)
+   *
+   * This is the actual session identifier used by the underlying SDK/service.
+   * Provider must maintain the mapping between sessionId and providerSessionId.
+   *
+   * @example
+   * ```typescript
+   * // ClaudeProvider
+   * sessionId: "session_123_abc"           // Agent's session ID
+   * providerSessionId: "f1fb2903-2a58..."  // Claude SDK's real session ID
+   *
+   * // Resume uses providerSessionId:
+   * query({ resume: this.providerSessionId })
+   * ```
+   */
+  readonly providerSessionId: string | null;
 
   /**
    * Send a message and stream responses
