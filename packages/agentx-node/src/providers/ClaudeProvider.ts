@@ -16,6 +16,8 @@ export class ClaudeProvider implements AgentProvider {
   private abortController: AbortController;
   private config: AgentConfig;
   private currentQuery: Query | null = null;
+  private isFirstMessage: boolean = true;
+  private internalMessages: Message[] = []; // Internal message history from SDK events
 
   constructor(config: AgentConfig) {
     this.config = config;
@@ -25,7 +27,16 @@ export class ClaudeProvider implements AgentProvider {
 
   async *send(message: string, _messages: ReadonlyArray<Message>): AsyncGenerator<AgentEvent> {
     try {
+      // Add user message to internal history
+      this.internalMessages.push({
+        id: this.generateId(),
+        role: "user",
+        content: message,
+        timestamp: Date.now(),
+      });
+
       // Create Claude SDK query
+      // Use resume for subsequent messages to maintain conversation context
       this.currentQuery = query({
         prompt: message,
         options: {
@@ -34,13 +45,21 @@ export class ClaudeProvider implements AgentProvider {
           maxThinkingTokens: this.config.maxThinkingTokens,
           abortController: this.abortController,
           mcpServers: this.transformMcpConfig(this.config.mcp),
+          includePartialMessages: true, // Enable stream_event and user message events
+          // Resume previous session to maintain context (Claude SDK uses file-based persistence)
+          resume: this.isFirstMessage ? undefined : this.sessionId,
         },
       });
+
+      // Mark that we've sent the first message
+      this.isFirstMessage = false;
 
       // Stream SDK messages and transform to AgentEvent
       for await (const sdkMessage of this.currentQuery) {
         const agentEvent = this.transformToAgentEvent(sdkMessage);
         if (agentEvent) {
+          // Capture messages to internal history
+          this.captureMessage(agentEvent);
           yield agentEvent;
         }
       }
@@ -56,6 +75,10 @@ export class ClaudeProvider implements AgentProvider {
     if (!config.model) {
       throw new AgentConfigError("model is required", "model");
     }
+  }
+
+  getMessages(): ReadonlyArray<Message> {
+    return this.internalMessages;
   }
 
   abort(): void {
@@ -194,7 +217,42 @@ export class ClaudeProvider implements AgentProvider {
     return result;
   }
 
+  /**
+   * Capture messages from SDK events to maintain internal history
+   * This ensures we have the complete conversation including tool use/results
+   */
+  private captureMessage(agentEvent: AgentEvent): void {
+    if (agentEvent.type === "user") {
+      // SDK sends tool results as user messages
+      // Don't add duplicates (we already added the original user message)
+      const lastMessage = this.internalMessages[this.internalMessages.length - 1];
+      const isDuplicate =
+        lastMessage?.role === "user" && lastMessage?.content === agentEvent.message.content;
+
+      if (!isDuplicate) {
+        this.internalMessages.push({
+          id: agentEvent.message.id,
+          role: "user",
+          content: agentEvent.message.content,
+          timestamp: agentEvent.message.timestamp,
+        });
+      }
+    } else if (agentEvent.type === "assistant") {
+      // Assistant messages (including tool_use in content array)
+      this.internalMessages.push({
+        id: agentEvent.message.id,
+        role: "assistant",
+        content: agentEvent.message.content,
+        timestamp: agentEvent.message.timestamp,
+      });
+    }
+  }
+
   private generateSessionId(): string {
     return `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  }
+
+  private generateId(): string {
+    return `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   }
 }

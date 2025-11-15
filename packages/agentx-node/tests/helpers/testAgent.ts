@@ -9,61 +9,77 @@ import { createAgent as createAgentCore } from "@deepractice-ai/agentx-core";
 import type { Agent, AgentConfig } from "@deepractice-ai/agentx-api";
 import { MockProvider, type MockProviderOptions } from "../mocks/MockProvider";
 import { ClaudeProvider } from "~/providers/ClaudeProvider";
-
-/**
- * Test mode - controlled by environment variable
- *
- * - "mock" (default): Use MockProvider for fast, deterministic tests
- * - "integration": Use real ClaudeProvider for integration tests
- *
- * Set via: TEST_MODE=integration pnpm test
- */
-export const TEST_MODE = process.env.TEST_MODE || "mock";
+import { testEnv } from "./testEnv";
 
 /**
  * Check if we should use real API
+ *
+ * Automatically determined by .env.test configuration:
+ * - If ANTHROPIC_AUTH_TOKEN and ANTHROPIC_BASE_URL are set -> use real API
+ * - Otherwise -> use MockProvider
+ *
+ * Can be manually overridden with: TEST_MODE=integration pnpm test
  */
 export function useRealAPI(): boolean {
-  return TEST_MODE === "integration";
+  // Manual override via environment variable
+  if (process.env.TEST_MODE === "integration") {
+    return true;
+  }
+  if (process.env.TEST_MODE === "mock") {
+    return false;
+  }
+
+  // Auto-detect from .env.test
+  return testEnv.useRealAPI;
 }
 
 /**
  * Create an agent for testing
  *
- * By default uses MockProvider. Set TEST_MODE=integration to use real API.
+ * Automatically uses real Claude API if .env.test has credentials configured.
+ * Otherwise uses MockProvider for fast, deterministic tests.
  *
- * @param config - Agent configuration
+ * @param config - Agent configuration (optional, uses defaults if not provided)
  * @param mockOptions - Options for MockProvider (ignored if using real API)
  * @returns Agent instance
  *
  * @example
  * ```typescript
- * // Unit test with mock (default)
- * const agent = createTestAgent({
- *   apiKey: "test-key",
- *   model: "claude-sonnet-4",
- * });
+ * // Unit test with mock (default, no .env.test)
+ * const agent = createTestAgent();
  *
- * // Integration test with real API
- * // Run with: TEST_MODE=integration pnpm test
+ * // Integration test with real API (if .env.test has credentials)
+ * const agent = createTestAgent();
+ *
+ * // Custom config
  * const agent = createTestAgent({
- *   apiKey: process.env.ANTHROPIC_API_KEY!,
+ *   apiKey: "custom-key",
  *   model: "claude-sonnet-4",
  * });
  * ```
  */
 export function createTestAgent(
-  config: AgentConfig,
+  config?: Partial<AgentConfig>,
   mockOptions?: MockProviderOptions
 ): Agent {
+  // Merge with default config
+  const finalConfig: AgentConfig = {
+    ...getDefaultTestConfig(),
+    ...config,
+  };
+
   if (useRealAPI()) {
-    // Integration test mode - use real ClaudeProvider
-    const provider = new ClaudeProvider(config);
-    return createAgentCore(config, provider);
+    // Integration test mode - use real ClaudeProvider with credentials from .env.test
+    const provider = new ClaudeProvider({
+      ...finalConfig,
+      apiKey: testEnv.authToken!,
+      baseUrl: testEnv.baseUrl,
+    });
+    return createAgentCore(finalConfig, provider);
   } else {
     // Unit test mode (default) - use MockProvider
-    const provider = new MockProvider(config, mockOptions);
-    return createAgentCore(config, provider);
+    const provider = new MockProvider(finalConfig, mockOptions);
+    return createAgentCore(finalConfig, provider);
   }
 }
 
@@ -72,13 +88,11 @@ export function createTestAgent(
  *
  * Returns appropriate config based on test mode:
  * - Mock mode: uses dummy API key
- * - Integration mode: uses real API key from env
+ * - Real API mode: credentials from .env.test (handled in createTestAgent)
  */
 export function getDefaultTestConfig(): AgentConfig {
   return {
-    apiKey: useRealAPI()
-      ? process.env.ANTHROPIC_API_KEY || ""
-      : "mock-api-key",
+    apiKey: useRealAPI() ? testEnv.authToken || "" : "mock-api-key",
     model: "claude-sonnet-4-20250514",
   };
 }

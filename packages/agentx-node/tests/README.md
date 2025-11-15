@@ -370,13 +370,38 @@ pnpm test
 
 ### Integration Test Mode
 
-Uses real Claude API (requires `ANTHROPIC_API_KEY`).
+Uses real Claude API with credentials from `.env.test` file.
+
+**Setup**:
+1. Copy the template:
+   ```bash
+   cp .env.test.example .env.test
+   ```
+
+2. Edit `.env.test` and fill in your credentials:
+   ```bash
+   ANTHROPIC_AUTH_TOKEN=cr_9e35c66a9ceb9d89ced90f278a1e1bd6bd33078f6fe0bca7984867fcb126eca0
+   ANTHROPIC_BASE_URL=http://118.178.86.178/api
+   ```
+
+3. Run tests (automatically uses real API):
+   ```bash
+   pnpm test
+   ```
+
+**Manual Override**:
+You can also override with environment variables:
 
 ```bash
-TEST_MODE=integration pnpm test
+TEST_MODE=integration ANTHROPIC_AUTH_TOKEN=xxx ANTHROPIC_BASE_URL=xxx pnpm test
 ```
 
-**Note**: Integration tests will skip if API key is not set.
+**How It Works**:
+- If `.env.test` exists with credentials → uses real Claude API
+- If `.env.test` is missing or empty → uses MockProvider
+- Manual `TEST_MODE=integration` overrides auto-detection
+
+**Note**: Integration tests automatically skip if credentials are not available.
 
 ## Troubleshooting
 

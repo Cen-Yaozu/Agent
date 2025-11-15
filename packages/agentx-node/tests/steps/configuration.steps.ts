@@ -109,8 +109,11 @@ Then("the agent should connect to the SSE MCP server", () => {
 // Scenario: Missing required configuration throws error
 When("I try to create an agent without apiKey", () => {
   try {
+    // Don't use createTestAgent which applies defaults
+    // Create agent directly to test validation
     const config = {
       model: "claude-sonnet-4-20250514",
+      apiKey: "", // Empty apiKey should trigger validation error
     } as AgentConfig;
 
     context.agent = createTestAgent(config);
@@ -133,6 +136,7 @@ When("I try to create an agent without model", () => {
   try {
     const config = {
       apiKey: "sk-ant-test-12345",
+      model: "", // Empty model should trigger validation error
     } as AgentConfig;
 
     context.agent = createTestAgent(config);
@@ -144,7 +148,8 @@ When("I try to create an agent without model", () => {
 // Scenario: Configuration validation before creation
 Given("I have invalid configuration", () => {
   context.agentConfig = {
-    // Missing both apiKey and model
+    apiKey: "", // Empty to trigger validation
+    model: "", // Empty to trigger validation
   };
 });
 

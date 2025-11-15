@@ -55,6 +55,27 @@ export interface AgentProvider {
   send(message: string, messages: ReadonlyArray<Message>): AsyncGenerator<AgentEvent>;
 
   /**
+   * Get complete message history maintained by the provider
+   *
+   * Provider must capture all messages from events (user, assistant, tool results)
+   * to maintain a complete conversation history including tool use cycles.
+   *
+   * @returns Complete message history including tool use and tool results
+   *
+   * @example
+   * ```typescript
+   * const messages = provider.getMessages();
+   * // Returns: [
+   * //   { role: "user", content: "Hello" },
+   * //   { role: "assistant", content: [...] },
+   * //   { role: "user", content: [tool_result] },  // Tool result
+   * //   { role: "assistant", content: [...] }
+   * // ]
+   * ```
+   */
+  getMessages(): ReadonlyArray<Message>;
+
+  /**
    * Validate configuration
    * Throws if configuration is invalid
    *

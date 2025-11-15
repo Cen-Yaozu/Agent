@@ -50,10 +50,16 @@ export class Agent implements IAgent {
 
     // Emit user message event
     this.emitEvent({
-      type: "user_message",
+      type: "user",
+      uuid: this.generateId(),
       sessionId: this.sessionId,
-      message: { role: "user", content: message },
-      timestamp: new Date(),
+      message: {
+        id: this.generateId(),
+        role: "user",
+        content: message,
+        timestamp: Date.now(),
+      },
+      timestamp: Date.now(),
     });
 
     try {

@@ -14,6 +14,8 @@ export default defineConfig({
     environment: "node",
     include: ["dist/features/**/*.feature"],
     exclude: ["**/node_modules/**", "**/cypress/**"],
+    setupFiles: ["./tests/setup.ts"],
+    testTimeout: 120000, // 120 seconds (2 minutes) for real API calls
   },
   resolve: {
     alias: {

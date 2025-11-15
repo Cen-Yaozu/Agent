@@ -28,6 +28,7 @@ export class MockProvider implements AgentProvider {
   private aborted = false;
   private options: MockProviderOptions;
   private config: AgentConfig;
+  private internalMessages: Message[] = [];
 
   constructor(config: AgentConfig, options: MockProviderOptions = {}) {
     this.config = config;
@@ -40,6 +41,14 @@ export class MockProvider implements AgentProvider {
     messages: ReadonlyArray<Message>
   ): AsyncGenerator<AgentEvent> {
     this.aborted = false;
+
+    // Add user message to internal history
+    this.internalMessages.push({
+      id: this.generateUuid(),
+      role: "user",
+      content: message,
+      timestamp: Date.now(),
+    });
 
     // Simulate delay
     if (this.options.delay) {
@@ -150,6 +159,14 @@ export class MockProvider implements AgentProvider {
       timestamp: Date.now(),
     };
 
+    // Add assistant message to internal history
+    this.internalMessages.push({
+      id: this.generateUuid(),
+      role: "assistant",
+      content: fullResponse,
+      timestamp: Date.now(),
+    });
+
     // Emit result event (success)
     yield {
       type: "result",
@@ -169,6 +186,10 @@ export class MockProvider implements AgentProvider {
       },
       timestamp: Date.now(),
     };
+  }
+
+  getMessages(): ReadonlyArray<Message> {
+    return this.internalMessages;
   }
 
   validateConfig(config: AgentConfig): void {
