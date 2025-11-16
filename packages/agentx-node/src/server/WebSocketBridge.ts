@@ -1,10 +1,12 @@
 /**
  * WebSocket Bridge - Agent Events → WebSocket Messages
  *
- * Automatically subscribes to all Agent events and forwards them to WebSocket client
+ * Subscribes to response events and forwards them to WebSocket client.
+ * Only forwards Server → Client events (RESPONSE_EVENT_TYPES).
  */
 
 import type { Agent, EventType, EventPayload } from "@deepractice-ai/agentx-api";
+import { RESPONSE_EVENT_TYPES } from "@deepractice-ai/agentx-api";
 import type WebSocket from "ws";
 
 /**
@@ -28,19 +30,14 @@ export class WebSocketBridge {
   }
 
   /**
-   * Subscribe to all Agent events and forward to WebSocket
+   * Subscribe to response events and forward to WebSocket
+   *
+   * Uses RESPONSE_EVENT_TYPES from agentx-api.
+   * Only forwards Server → Client events, never echoes Client → Server events.
+   * TypeScript will error if we miss any event type.
    */
   private setupEventForwarding(): void {
-    // All event types from agentx-api
-    const eventTypes: EventType[] = [
-      "user", // User message
-      "assistant", // Assistant message (complete)
-      "stream_event", // Stream delta (incremental)
-      "result", // Final result (success/error)
-      "system", // System init
-    ];
-
-    eventTypes.forEach((eventType) => {
+    RESPONSE_EVENT_TYPES.forEach((eventType) => {
       const handler = (payload: EventPayload<typeof eventType>) => {
         this.sendEvent(eventType, payload);
       };
@@ -52,7 +49,7 @@ export class WebSocketBridge {
       this.eventHandlers.set(eventType, handler);
     });
 
-    console.log(`[WebSocketBridge] Forwarding events for session ${this.agent.sessionId}`);
+    console.log(`[WebSocketBridge] Forwarding ${RESPONSE_EVENT_TYPES.length} response event types for session ${this.agent.sessionId}`);
   }
 
   /**

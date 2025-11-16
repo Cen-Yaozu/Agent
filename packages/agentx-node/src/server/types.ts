@@ -2,7 +2,7 @@
  * WebSocket Server Types
  */
 
-import type { Agent } from "@deepractice-ai/agentx-api";
+import type { Agent, UserMessageEvent } from "@deepractice-ai/agentx-api";
 import type { Server as HttpServer } from "http";
 
 /**
@@ -29,9 +29,12 @@ export interface WebSocketServerConfig {
 
 /**
  * Client → Server messages
+ *
+ * Aligns with agentx-api event system.
+ * Client can send UserMessageEvent or control commands.
  */
 export type ClientMessage =
-  | { type: "send"; content: string }
+  | UserMessageEvent  // Standard event from agentx-api
   | { type: "clear" }
   | { type: "destroy" };
 

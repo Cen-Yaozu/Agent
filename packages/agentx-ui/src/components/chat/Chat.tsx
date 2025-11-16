@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import type { Agent } from "@deepractice-ai/agentx-browser";
 import type { Message } from "@deepractice-ai/agentx-types";
+import type { ErrorEvent } from "@deepractice-ai/agentx-api";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatInput } from "./ChatInput";
+import { ErrorMessage } from "./ErrorMessage";
 
 export interface ChatProps {
   /**
@@ -53,19 +55,26 @@ export function Chat({ agent, initialMessages = [], onMessageSend, className = "
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [streaming, setStreaming] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<ErrorEvent[]>([]);
 
   useEffect(() => {
+    console.log("[Chat] Setting up event listeners");
+
     // Listen for assistant messages (complete)
     const unsubAssistant = agent.on("assistant", (event) => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: event.uuid,
-          role: "assistant",
-          content: event.message.content as string,
-          timestamp: event.timestamp,
-        },
-      ]);
+      console.log("[Chat] assistant event received:", event.uuid, event.message.content);
+      setMessages((prev) => {
+        console.log("[Chat] Adding assistant message, current count:", prev.length);
+        return [
+          ...prev,
+          {
+            id: event.uuid,
+            role: "assistant",
+            content: event.message.content as string,
+            timestamp: event.timestamp,
+          },
+        ];
+      });
       setStreaming("");
       setIsLoading(false);
     });
@@ -74,12 +83,14 @@ export function Chat({ agent, initialMessages = [], onMessageSend, className = "
     const unsubStream = agent.on("stream_event", (event) => {
       const delta = event.delta;
       if (delta?.type === "text_delta" && 'text' in delta) {
+        console.log("[Chat] stream_event delta:", delta.text);
         setStreaming((prev) => prev + delta.text);
       }
     });
 
     // Listen for user messages
     const unsubUser = agent.on("user", (event) => {
+      console.log("[Chat] user event received:", event.uuid);
       setMessages((prev) => [
         ...prev,
         {
@@ -91,12 +102,20 @@ export function Chat({ agent, initialMessages = [], onMessageSend, className = "
       ]);
     });
 
+    // Listen for error events
+    const unsubError = agent.on("error", (event) => {
+      console.error("[Chat] error event received:", event);
+      setErrors((prev) => [...prev, event]);
+      setIsLoading(false); // Stop loading on error
+    });
+
     // Cleanup on unmount - only unsubscribe, don't destroy agent
     // Agent lifecycle is managed by parent component
     return () => {
       unsubAssistant();
       unsubStream();
       unsubUser();
+      unsubError();
     };
   }, [agent]);
 
@@ -110,6 +129,15 @@ export function Chat({ agent, initialMessages = [], onMessageSend, className = "
     <div className={`h-full flex flex-col bg-background ${className}`}>
       {/* Messages area */}
       <ChatMessageList messages={messages} streamingText={streaming} isLoading={isLoading} />
+
+      {/* Error messages (above input) */}
+      {errors.length > 0 && (
+        <div className="px-2 sm:px-4 md:px-4 pb-2 max-w-4xl mx-auto w-full space-y-2">
+          {errors.map((error) => (
+            <ErrorMessage key={error.uuid} error={error} showDetails={true} />
+          ))}
+        </div>
+      )}
 
       {/* Input area */}
       <div className="p-2 sm:p-4 md:p-4 flex-shrink-0 pb-2 sm:pb-4 md:pb-6">

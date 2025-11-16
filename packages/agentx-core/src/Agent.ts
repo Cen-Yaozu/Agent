@@ -11,6 +11,9 @@ import type {
   EventPayload,
   AgentEvent,
   UserMessageEvent,
+  ErrorEvent,
+  ErrorSeverity,
+  ErrorSubtype,
 } from "@deepractice-ai/agentx-api";
 import { AgentAbortError } from "@deepractice-ai/agentx-api";
 import type { Message } from "@deepractice-ai/agentx-types";
@@ -54,7 +57,17 @@ export class Agent implements IAgent {
     );
 
     // Connect provider to event bus and start listening to responses
-    this.initializeEventBus();
+    // Note: This is async but we don't await in constructor
+    // Errors are handled internally to avoid uncaught promise rejections
+    this.initializeEventBus().catch((error) => {
+      this.emitErrorEvent(
+        error instanceof Error ? error : new Error(String(error)),
+        "system",
+        "fatal",
+        "INIT_FAILED",
+        false
+      );
+    });
   }
 
   private async initializeEventBus(): Promise<void> {
@@ -67,13 +80,11 @@ export class Agent implements IAgent {
         this.handleInboundEvent(event);
       },
       error: (error) => {
-        this.logger?.error(
-          LogFormatter.error("AgentEventBus error", error instanceof Error ? error : new Error(String(error))),
-          {
-            agentId: this.id,
-            sessionId: this.sessionId,
-            error,
-          }
+        this.emitErrorEvent(
+          error instanceof Error ? error : new Error(String(error)),
+          "system",
+          "error",
+          "EVENTBUS_ERROR"
         );
       },
     });
@@ -283,19 +294,79 @@ export class Agent implements IAgent {
         try {
           handler(event);
         } catch (error) {
-          this.logger?.error(
-            `Event handler execution failed for ${event.type}`,
-            {
-              agentId: this.id,
-              sessionId: this.sessionId,
-              eventType: event.type,
-              eventSubtype: subtype,
-              handlerIndex: index,
-              error: error instanceof Error ? error : new Error(String(error)),
-            }
+          this.emitErrorEvent(
+            error instanceof Error ? error : new Error(String(error)),
+            "agent",
+            "error",
+            "HANDLER_ERROR",
+            true
           );
         }
       });
+    }
+  }
+
+  /**
+   * Emit error event with standardized format
+   *
+   * This is the central error handling method.
+   * All errors should flow through here to ensure consistency.
+   *
+   * @param error - The error object or message
+   * @param subtype - Error category (system/agent/llm/validation)
+   * @param severity - Error severity level
+   * @param code - Optional machine-readable error code
+   * @param recoverable - Whether the error is recoverable
+   */
+  private emitErrorEvent(
+    error: Error | string,
+    subtype: ErrorSubtype,
+    severity: ErrorSeverity = "error",
+    code?: string,
+    recoverable?: boolean
+  ): void {
+    const errorMessage = error instanceof Error ? error.message : error;
+    const errorDetails = error instanceof Error ? { stack: error.stack } : undefined;
+
+    const errorEvent: ErrorEvent = {
+      type: "error",
+      subtype,
+      severity,
+      message: errorMessage,
+      code,
+      details: errorDetails,
+      recoverable: recoverable ?? (subtype !== "system"),
+      uuid: this.generateId(),
+      sessionId: this.sessionId,
+      timestamp: Date.now(),
+    };
+
+    // Log error
+    this.logger?.error(
+      `[${subtype}] ${errorMessage}`,
+      {
+        agentId: this.id,
+        sessionId: this.sessionId,
+        errorSubtype: subtype,
+        severity,
+        code,
+      }
+    );
+
+    // Emit to local event handlers
+    this.emitEvent(errorEvent);
+
+    // Also emit to EventBus for remote listeners
+    try {
+      this.eventBus.emit(errorEvent);
+    } catch (busError) {
+      // EventBus might be closed, log but don't fail
+      console.error("[Agent] Failed to emit error to EventBus:", busError);
+    }
+
+    // Warn if no error handler is registered
+    if (!this.eventHandlers.has("error") || this.eventHandlers.get("error")!.size === 0) {
+      console.warn("[Agent] Unhandled ErrorEvent:", errorEvent);
     }
   }
 

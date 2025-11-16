@@ -25,14 +25,19 @@ export type {
   AgentEvent,
   EventType,
   EventPayload,
+  RequestEvent,
+  ResponseEvent,
   UserMessageEvent,
   AssistantMessageEvent,
   StreamDeltaEvent,
   ResultEvent,
-  ResultSuccessEvent,
-  ResultErrorEvent,
   SystemInitEvent,
+  ErrorEvent,
+  ErrorSeverity,
+  ErrorSubtype,
 } from "./events";
+
+export { ALL_EVENT_TYPES, REQUEST_EVENT_TYPES, RESPONSE_EVENT_TYPES } from "./events";
 
 // === Errors ===
 export { AgentConfigError, AgentAbortError } from "./errors";

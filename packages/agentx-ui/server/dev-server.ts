@@ -51,7 +51,7 @@ async function startDevServer() {
     {
       enableLogging: true,
       prettyLogs: true,
-      logLevel: "info",
+      logLevel: "debug",
     }
   );
 

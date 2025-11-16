@@ -91,8 +91,19 @@ export function createWebSocketServer(config: WebSocketServerConfig): AgentWebSo
 
         // Route message to Agent methods
         switch (message.type) {
-          case "send":
-            await agent.send(message.content);
+          case "user":
+            // Extract text content from UserMessageEvent
+            // UserMessage.content can be string or ContentPart[]
+            const content = message.message.content;
+            let textContent: string;
+            if (typeof content === "string") {
+              textContent = content;
+            } else {
+              // Array of ContentPart - extract text from first TextPart
+              const firstPart = content[0];
+              textContent = firstPart && "text" in firstPart ? firstPart.text : "";
+            }
+            await agent.send(textContent);
             break;
 
           case "clear":
@@ -109,14 +120,20 @@ export function createWebSocketServer(config: WebSocketServerConfig): AgentWebSo
       } catch (error) {
         console.error("[WebSocketServer] Error handling message:", error);
 
-        // Send error to client
-        ws.send(
-          JSON.stringify({
-            type: "error",
-            error: error instanceof Error ? error.message : "Unknown error",
-            sessionId: agent.sessionId,
-          })
-        );
+        // Send ErrorEvent to client (符合 ErrorEvent 规范)
+        const errorEvent = {
+          type: "error",
+          subtype: "system",
+          severity: "error",
+          message: error instanceof Error ? error.message : "Unknown error",
+          code: "WS_MESSAGE_ERROR",
+          recoverable: true,
+          uuid: `error_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          sessionId: agent.sessionId,
+          timestamp: Date.now(),
+        };
+
+        ws.send(JSON.stringify(errorEvent));
       }
     });
 

@@ -16,6 +16,9 @@ export type { ToolMessageProps } from "./ToolMessage";
 export { SystemMessage } from "./SystemMessage";
 export type { SystemMessageProps } from "./SystemMessage";
 
+export { ErrorMessage } from "./ErrorMessage";
+export type { ErrorMessageProps } from "./ErrorMessage";
+
 export { ChatInput } from "./ChatInput";
 export type { ChatInputProps } from "./ChatInput";
 

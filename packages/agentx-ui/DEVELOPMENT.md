@@ -37,7 +37,7 @@ This means:
 
 ### Step 1: Start Development Server
 
-The dev server provides a real WebSocket endpoint connected to Claude API:
+The dev server provides a real WebSocket endpoint connected to Claude API with hot-reload:
 
 ```bash
 cd packages/agentx-ui
@@ -48,6 +48,8 @@ This starts:
 - WebSocket Server on `ws://localhost:5200/ws`
 - Connected to real Claude API
 - With logging enabled for debugging
+- 🔥 **Auto-reload**: Watches agentx-node changes, rebuilds and restarts automatically
+- WebSocket clients auto-reconnect on restart
 
 **Output:**
 ```

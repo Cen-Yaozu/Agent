@@ -11,7 +11,7 @@
  */
 
 import type { AgentProvider, AgentEventBus } from "@deepractice-ai/agentx-core";
-import type { AgentEvent } from "@deepractice-ai/agentx-api";
+import type { AgentEvent, ErrorEvent } from "@deepractice-ai/agentx-api";
 import { AgentConfigError } from "@deepractice-ai/agentx-api";
 import type { Subscription } from "rxjs";
 import type { BrowserAgentConfig } from "../config/BrowserAgentConfig";
@@ -138,6 +138,16 @@ export class BrowserProvider implements AgentProvider {
 
       this.ws.onerror = (error) => {
         console.error("[BrowserProvider] WebSocket error:", error);
+
+        // Emit ErrorEvent to AgentEventBus
+        this.emitErrorEvent(
+          "WebSocket connection error",
+          "system",
+          "error",
+          "WS_ERROR",
+          true
+        );
+
         if (!this.isConnected) {
           reject(new Error("WebSocket connection failed"));
         }
@@ -161,6 +171,16 @@ export class BrowserProvider implements AgentProvider {
 
     if (this.reconnectAttempts >= this.config.maxReconnectAttempts) {
       console.error("[BrowserProvider] Max reconnect attempts reached");
+
+      // Emit fatal error - cannot reconnect
+      this.emitErrorEvent(
+        `Failed to reconnect after ${this.config.maxReconnectAttempts} attempts`,
+        "system",
+        "fatal",
+        "WS_RECONNECT_FAILED",
+        false
+      );
+
       return;
     }
 
@@ -184,6 +204,16 @@ export class BrowserProvider implements AgentProvider {
   private handleOutboundEvent(userEvent: AgentEvent): void {
     if (!this.isConnected || !this.ws) {
       console.error("[BrowserProvider] Cannot send: WebSocket not connected");
+
+      // Emit error - cannot send message
+      this.emitErrorEvent(
+        "Cannot send message: WebSocket not connected",
+        "system",
+        "error",
+        "WS_NOT_CONNECTED",
+        true
+      );
+
       return;
     }
 
@@ -213,10 +243,61 @@ export class BrowserProvider implements AgentProvider {
       this.eventBus.emit(event);
     } catch (error) {
       console.error("[BrowserProvider] Failed to parse server message:", error);
+
+      // Emit parse error
+      this.emitErrorEvent(
+        error instanceof Error ? error.message : "Failed to parse server message",
+        "system",
+        "error",
+        "WS_PARSE_ERROR",
+        true
+      );
+    }
+  }
+
+  /**
+   * Emit ErrorEvent to AgentEventBus
+   *
+   * Centralized error handling for BrowserProvider.
+   * All errors should flow through this method.
+   */
+  private emitErrorEvent(
+    message: string,
+    subtype: "system" | "agent" | "llm" | "validation" | "unknown",
+    severity: "fatal" | "error" | "warning",
+    code: string,
+    recoverable: boolean
+  ): void {
+    if (!this.eventBus) {
+      console.warn("[BrowserProvider] Cannot emit ErrorEvent: eventBus is null");
+      return;
+    }
+
+    const errorEvent: ErrorEvent = {
+      type: "error",
+      subtype,
+      severity,
+      message,
+      code,
+      recoverable,
+      uuid: this.generateId(),
+      sessionId: this.sessionId,
+      timestamp: Date.now(),
+    };
+
+    try {
+      this.eventBus.emit(errorEvent);
+    } catch (error) {
+      // EventBus might be closed, log but don't fail
+      console.error("[BrowserProvider] Failed to emit ErrorEvent:", error);
     }
   }
 
   private generateSessionId(): string {
     return `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  }
+
+  private generateId(): string {
+    return `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   }
 }

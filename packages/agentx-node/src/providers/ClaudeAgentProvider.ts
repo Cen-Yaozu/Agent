@@ -13,7 +13,7 @@
 
 import { query, type SDKMessage, type Query } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentProvider, AgentEventBus } from "@deepractice-ai/agentx-core";
-import type { AgentEvent, UserMessageEvent } from "@deepractice-ai/agentx-api";
+import type { AgentEvent, UserMessageEvent, ErrorEvent } from "@deepractice-ai/agentx-api";
 import { AgentConfigError } from "@deepractice-ai/agentx-api";
 import type { NodeAgentConfig } from "../config/NodeAgentConfig";
 import { observableToAsyncIterable } from "../utils/observableToAsyncIterable";
@@ -154,26 +154,21 @@ export class ClaudeAgentProvider implements AgentProvider {
     } catch (error) {
       console.error('[ClaudeAgentProvider] Error in startListening:', error);
 
-      // Emit error event to AgentEventBus
+      // Emit ErrorEvent to AgentEventBus
       if (this.eventBus) {
-        this.eventBus.emit({
-          type: "result",
-          subtype: "error_during_execution",
+        const errorEvent: ErrorEvent = {
+          type: "error",
+          subtype: "llm",
+          severity: "error",
+          message: error instanceof Error ? error.message : String(error),
+          code: "LLM_ERROR",
+          details: error instanceof Error ? { stack: error.stack } : undefined,
+          recoverable: true,
           uuid: this.generateId(),
           sessionId: this.sessionId,
-          durationMs: 0,
-          durationApiMs: 0,
-          numTurns: 0,
-          totalCostUsd: 0,
-          usage: {
-            input: 0,
-            output: 0,
-            cacheRead: 0,
-            cacheWrite: 0,
-          },
-          error: error instanceof Error ? error : new Error(String(error)),
           timestamp: Date.now(),
-        });
+        };
+        this.eventBus.emit(errorEvent);
       }
     } finally {
       this.currentQuery = null;
@@ -255,9 +250,9 @@ export class ClaudeAgentProvider implements AgentProvider {
 
       case "result":
         if (sdkMessage.subtype === "success") {
+          // Success result - emit as ResultEvent
           return {
             type: "result",
-            subtype: "success",
             uuid,
             sessionId: this.sessionId,
             durationMs: sdkMessage.duration_ms,
@@ -274,27 +269,36 @@ export class ClaudeAgentProvider implements AgentProvider {
             timestamp,
           };
         } else {
-          // Filter to only allowed error subtypes
-          const subtype =
-            sdkMessage.subtype === "error_max_turns" ? "error_max_turns" : "error_during_execution";
-          return {
-            type: "result",
-            subtype,
+          // Error result - convert to ErrorEvent
+          const errorCode = sdkMessage.subtype === "error_max_turns" ? "MAX_TURNS" : "LLM_ERROR";
+          const errorMessage = sdkMessage.subtype === "error_max_turns"
+            ? `Maximum turns (${sdkMessage.num_turns}) exceeded`
+            : `Claude SDK error: ${sdkMessage.subtype}`;
+
+          const errorEvent: ErrorEvent = {
+            type: "error",
+            subtype: "llm",
+            severity: "error",
+            message: errorMessage,
+            code: errorCode,
+            details: {
+              durationMs: sdkMessage.duration_ms,
+              durationApiMs: sdkMessage.duration_api_ms,
+              numTurns: sdkMessage.num_turns,
+              totalCostUsd: sdkMessage.total_cost_usd,
+              usage: {
+                input: sdkMessage.usage.input_tokens,
+                output: sdkMessage.usage.output_tokens,
+                cacheWrite: sdkMessage.usage.cache_creation_input_tokens ?? 0,
+                cacheRead: sdkMessage.usage.cache_read_input_tokens ?? 0,
+              },
+            },
+            recoverable: sdkMessage.subtype === "error_max_turns" ? false : true,
             uuid,
             sessionId: this.sessionId,
-            durationMs: sdkMessage.duration_ms,
-            durationApiMs: sdkMessage.duration_api_ms,
-            numTurns: sdkMessage.num_turns,
-            totalCostUsd: sdkMessage.total_cost_usd,
-            usage: {
-              input: sdkMessage.usage.input_tokens,
-              output: sdkMessage.usage.output_tokens,
-              cacheWrite: sdkMessage.usage.cache_creation_input_tokens ?? 0,
-              cacheRead: sdkMessage.usage.cache_read_input_tokens ?? 0,
-            },
-            error: new Error(`Agent error: ${sdkMessage.subtype}`),
             timestamp,
           };
+          return errorEvent;
         }
 
       case "system":

@@ -11,36 +11,53 @@
  * Performance:
  * - First message: ~6-7s (process startup)
  * - Subsequent messages: ~1-2s (3-5x faster)
+ *
+ * Design:
+ * - Uses ReplaySubject for outbound to buffer user messages
+ * - Prevents message loss when provider subscribes after emit
+ * - Uses regular Subject for inbound (no replay needed)
  */
 
-import { Subject, type Observable } from "rxjs";
+import { Subject, ReplaySubject, type Observable } from "rxjs";
 import { filter } from "rxjs/operators";
 import type { AgentEvent, UserMessageEvent } from "@deepractice-ai/agentx-api";
 
 export class AgentEventBus {
   private events$ = new Subject<AgentEvent>();
+  private outbound$ = new ReplaySubject<UserMessageEvent>(10); // Buffer last 10 user messages
   private closed = false;
 
   /**
    * Emit an event to the bus
+   *
+   * Note: Silently ignores events if bus is closed (graceful degradation)
    */
   emit(event: AgentEvent): void {
     if (this.closed) {
-      throw new Error("AgentEventBus is closed");
+      console.warn("[AgentEventBus] Cannot emit event: bus is closed", event.type);
+      return;
     }
+
+    // Emit to general stream
     this.events$.next(event);
+
+    // Also emit to outbound buffer if it's a user message
+    if (event.type === "user") {
+      this.outbound$.next(event);
+    }
   }
 
   /**
    * Subscribe to outbound events (user messages)
    * Provider consumes these to send to AI
    *
+   * Uses ReplaySubject to buffer messages, preventing loss
+   * when provider subscribes after message emission.
+   *
    * @returns Observable of UserMessageEvent
    */
   outbound(): Observable<UserMessageEvent> {
-    return this.events$.pipe(
-      filter((event): event is UserMessageEvent => event.type === "user")
-    );
+    return this.outbound$.asObservable();
   }
 
   /**
@@ -74,6 +91,7 @@ export class AgentEventBus {
     if (!this.closed) {
       this.closed = true;
       this.events$.complete();
+      this.outbound$.complete();
     }
   }
 

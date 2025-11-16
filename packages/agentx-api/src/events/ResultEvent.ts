@@ -1,21 +1,33 @@
 /**
- * Result Events
+ * Result Event
  *
- * Emitted when conversation completes (success or error).
+ * Emitted when conversation completes successfully.
  * Contains final statistics and usage information.
  *
- * Aligned with: SDKResultMessage from @anthropic-ai/claude-agent-sdk
+ * Note: Error results are now emitted as ErrorEvent (type: "error", subtype: "llm")
+ *
+ * Aligned with: SDKResultMessage (subtype: "success") from @anthropic-ai/claude-agent-sdk
  */
 
 import type { TokenUsage } from "@deepractice-ai/agentx-types";
 import type { BaseAgentEvent } from "./BaseAgentEvent";
 
 /**
- * Result event - Success
+ * Result Event (Success)
+ *
+ * @example
+ * {
+ *   type: "result",
+ *   durationMs: 15234,
+ *   durationApiMs: 12000,
+ *   numTurns: 3,
+ *   result: "Task completed successfully",
+ *   totalCostUsd: 0.05,
+ *   usage: { input: 1000, output: 500, cacheRead: 0, cacheWrite: 0 }
+ * }
  */
-export interface ResultSuccessEvent extends BaseAgentEvent {
+export interface ResultEvent extends BaseAgentEvent {
   type: "result";
-  subtype: "success";
   durationMs: number;
   durationApiMs: number;
   numTurns: number;
@@ -23,22 +35,3 @@ export interface ResultSuccessEvent extends BaseAgentEvent {
   totalCostUsd: number;
   usage: TokenUsage;
 }
-
-/**
- * Result event - Error
- */
-export interface ResultErrorEvent extends BaseAgentEvent {
-  type: "result";
-  subtype: "error_max_turns" | "error_during_execution";
-  durationMs: number;
-  durationApiMs: number;
-  numTurns: number;
-  totalCostUsd: number;
-  usage: TokenUsage;
-  error?: Error;
-}
-
-/**
- * Union of all result events
- */
-export type ResultEvent = ResultSuccessEvent | ResultErrorEvent;

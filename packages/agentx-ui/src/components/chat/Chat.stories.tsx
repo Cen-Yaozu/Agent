@@ -32,10 +32,17 @@ type Story = StoryObj<typeof Chat>;
 export const LiveChat: Story = {
   render: () => {
     const [agent] = useState(() =>
-      createAgent({
-        wsUrl: "ws://localhost:5200/ws",
-        sessionId: `story-chat-${Date.now()}`,
-      })
+      createAgent(
+        {
+          wsUrl: "ws://localhost:5200/ws",
+          sessionId: `story-chat-${Date.now()}`,
+        },
+        {
+          enableLogging: true,
+          logLevel: LogLevel.DEBUG,
+          loggerTag: "LiveChat",
+        }
+      )
     );
 
     return (
