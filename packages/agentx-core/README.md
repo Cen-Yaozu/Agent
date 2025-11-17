@@ -217,6 +217,166 @@ await agent.destroy();
 const messages = agent.messages;
 ```
 
+### Error Handling
+
+AgentX Core uses a **unified error handling architecture** where errors from any layer are converted to `error_message` events and propagated through the EventBus.
+
+#### Architecture
+
+```
+Error Source (any layer)
+    ↓
+emitError() utility
+    ↓
+ErrorMessageEvent → EventBus
+    ↓
+UI/Subscribers
+```
+
+#### Error Categorization
+
+All errors are categorized by:
+
+- **Subtype**: `system` | `agent` | `llm` | `validation` | `unknown`
+  - `system` - Infrastructure errors (WebSocket, network)
+  - `agent` - Agent logic errors (reactor failures, state errors)
+  - `llm` - LLM provider errors (rate limits, API errors)
+  - `validation` - Input validation errors
+  - `unknown` - Uncategorized errors
+
+- **Severity**: `fatal` | `error` | `warning`
+  - `fatal` - Unrecoverable errors
+  - `error` - Recoverable errors (default)
+  - `warning` - Non-critical issues
+
+#### ErrorMessage Structure
+
+```typescript
+interface ErrorMessage {
+  id: string;
+  role: "error";
+  subtype: "system" | "agent" | "llm" | "validation" | "unknown";
+  severity: "fatal" | "error" | "warning";
+  message: string;           // Human-readable error
+  code?: string;            // Machine-readable code
+  details?: unknown;        // Additional context
+  recoverable?: boolean;    // Can the agent continue?
+  stack?: string;           // Stack trace if available
+  timestamp: number;
+}
+```
+
+#### Subscribing to Errors
+
+```typescript
+agent.react({
+  onErrorMessage(event) {
+    const error = event.data;
+    console.error(`[${error.severity}] ${error.subtype}: ${error.message}`);
+
+    if (error.code === "VALIDATION_ERROR") {
+      // Handle validation errors
+    }
+
+    if (!error.recoverable) {
+      // Handle fatal errors
+      await agent.destroy();
+    }
+  }
+});
+```
+
+#### Error Emission (Internal)
+
+Components use the `emitError()` utility to emit errors:
+
+```typescript
+import { emitError } from "@deepractice-ai/agentx-core/utils/emitError";
+
+// In a Reactor or component
+try {
+  // Some operation
+} catch (error) {
+  emitError(
+    context.producer,
+    error,
+    "validation",  // subtype
+    {
+      agentId: context.agentId,
+      componentName: "MyReactor",
+    },
+    {
+      code: "MY_ERROR_CODE",
+      severity: "error",
+      details: { /* additional context */ }
+    }
+  );
+}
+```
+
+#### Error Sources
+
+All layers emit error_message events:
+
+1. **DriverReactor** - Driver/LLM errors
+2. **ReactorRegistry** - Reactor initialization/destruction errors
+3. **MessageAssembler** - Content parsing errors
+4. **AgentService** - Validation errors (empty messages, etc.)
+5. **Custom Reactors** - Application-specific errors
+
+#### Best Practices
+
+1. ✅ **Always subscribe to error events** in production
+2. ✅ **Check `recoverable` flag** to decide whether to continue
+3. ✅ **Use `subtype` and `code`** for programmatic error handling
+4. ✅ **Log error details** for debugging
+5. ⚠️ **Don't ignore fatal errors** - they require cleanup
+
+#### Example: Complete Error Handling
+
+```typescript
+const agent = new AgentService(driver, logger);
+
+agent.react({
+  onErrorMessage(event) {
+    const { subtype, severity, message, code, recoverable } = event.data;
+
+    // Log error
+    logger.error(`Error [${subtype}/${severity}]: ${message}`, {
+      code,
+      recoverable,
+    });
+
+    // Handle specific error types
+    switch (subtype) {
+      case "validation":
+        showValidationError(message);
+        break;
+      case "llm":
+        if (code === "RATE_LIMIT") {
+          scheduleRetry();
+        }
+        break;
+      case "system":
+        if (!recoverable) {
+          await agent.destroy();
+          showFatalError(message);
+        }
+        break;
+    }
+  }
+});
+
+await agent.initialize();
+
+try {
+  await agent.send(""); // Validation error
+} catch (error) {
+  // Error also thrown for user code to catch
+  // But error_message event was already emitted
+}
+```
+
 ## Event Types
 
 ### Stream Events

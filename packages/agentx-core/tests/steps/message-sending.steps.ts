@@ -118,8 +118,12 @@ When("the driver responds with {string}", async (response: string) => {
     // Store the expected response for the last sent message
     ctx.testData.expectedResponse = response;
     // The driver will respond automatically, just wait
+    // Wait long enough for full streaming (10ms per char + 100ms buffer)
+    const waitTime = response.length * 10 + 200;
+    await new Promise((resolve) => setTimeout(resolve, waitTime));
+  } else {
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  await new Promise((resolve) => setTimeout(resolve, 100));
 });
 
 When("the driver streams text deltas {string}, {string}, {string}, {string}, {string}", async (...deltas: string[]) => {

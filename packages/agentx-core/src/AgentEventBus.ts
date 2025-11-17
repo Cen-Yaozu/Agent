@@ -77,7 +77,14 @@ class RxJSEventConsumer implements EventConsumer {
 
   consume(handler: (event: AgentEventType) => void): Unsubscribe {
     const subscription = this.events$.subscribe({
-      next: handler,
+      next: (event) => {
+        try {
+          handler(event);
+        } catch (error) {
+          console.error("[EventConsumer] Handler error:", error, "for event:", event.type);
+          // Don't rethrow - keep the event stream alive
+        }
+      },
       error: (error: Error) => console.error("[EventConsumer] Stream error:", error),
     });
 
@@ -95,7 +102,14 @@ class RxJSEventConsumer implements EventConsumer {
     const subscription = this.events$
       .pipe(filter((event): event is T => event.type === type))
       .subscribe({
-        next: handler,
+        next: (event) => {
+          try {
+            handler(event);
+          } catch (error) {
+            console.error("[EventConsumer] Handler error:", error, "for event:", event.type);
+            // Don't rethrow - keep the event stream alive
+          }
+        },
         error: (error: Error) => console.error("[EventConsumer] Stream error:", error),
       });
 
@@ -118,7 +132,14 @@ class RxJSEventConsumer implements EventConsumer {
         )
       )
       .subscribe({
-        next: handler,
+        next: (event) => {
+          try {
+            handler(event);
+          } catch (error) {
+            console.error("[EventConsumer] Handler error:", error, "for event:", event.type);
+            // Don't rethrow - keep the event stream alive
+          }
+        },
         error: (error: Error) => console.error("[EventConsumer] Stream error:", error),
       });
 

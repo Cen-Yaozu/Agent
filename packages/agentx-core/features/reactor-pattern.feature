@@ -11,8 +11,8 @@ Feature: Reactor Pattern and Custom Reactors
     Given I create a custom reactor "analytics"
     When I create an agent with the custom reactor
     And I initialize the agent
-    Then the custom reactor should be initialized
-    And the custom reactor should receive ReactorContext
+    Then the test reactor should be initialized
+    And the test reactor should receive ReactorContext
     And the reactor context should provide access to event bus
 
   Scenario: Custom reactor receives events

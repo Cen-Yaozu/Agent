@@ -348,7 +348,8 @@ When("I initialize the agent", async () => {
 When("I send a message and receive a response", async () => {
   expect(ctx.agent).toBeDefined();
   await ctx.agent!.send("test message");
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  // Wait longer for async event propagation to complete
+  await new Promise((resolve) => setTimeout(resolve, 500));
 });
 
 When("I destroy the agent", async () => {
@@ -406,7 +407,7 @@ When("I try to initialize the agent", async () => {
 
 // ===== Then steps =====
 
-Then("the custom reactor should be initialized", () => {
+Then("the test reactor should be initialized", () => {
   expect(ctx.customReactors.length).toBeGreaterThan(0);
   const reactor = ctx.customReactors[0];
   expect(reactor).toBeDefined();
@@ -415,7 +416,7 @@ Then("the custom reactor should be initialized", () => {
   }
 });
 
-Then("the custom reactor should receive ReactorContext", () => {
+Then("the test reactor should receive ReactorContext", () => {
   const reactor = ctx.customReactors[0];
   if (reactor instanceof TestReactor) {
     expect(reactor.initialized).toBe(true);
@@ -429,6 +430,9 @@ Then("the reactor context should provide access to event bus", () => {
 
 Then("the custom reactor should receive the {string} event", (eventType: string) => {
   const reactor = ctx.testData.customReactor as TestReactor;
+  console.log(`[Then] customReactor:`, reactor);
+  console.log(`[Then] receivedEvents count:`, reactor?.receivedEvents.length);
+  console.log(`[Then] receivedEvents:`, reactor?.receivedEvents);
   expect(reactor).toBeDefined();
   expect(reactor.receivedEvents.length).toBeGreaterThan(0);
 });

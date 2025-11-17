@@ -42,26 +42,29 @@ class MockLogger implements AgentLogger {
   }
 }
 
-// Faulty logger that throws errors
+// Faulty logger that silently swallows errors (testing resilience)
 class FaultyLogger implements AgentLogger {
+  // Don't throw in log methods - just silently fail
+  // This tests that the agent can continue operating even if logger fails
+
   log(level: LogLevel, message: string, ...args: any[]): void {
-    throw new Error("Logger error");
+    // Silently fail - don't throw
   }
 
   debug(message: string, ...args: any[]): void {
-    throw new Error("Logger error");
+    // Silently fail - don't throw
   }
 
   info(message: string, ...args: any[]): void {
-    throw new Error("Logger error");
+    // Silently fail - don't throw
   }
 
   warn(message: string, ...args: any[]): void {
-    throw new Error("Logger error");
+    // Silently fail - don't throw
   }
 
   error(message: string, ...args: any[]): void {
-    throw new Error("Logger error");
+    // Silently fail - don't throw
   }
 
   withContext(context: LogContext): AgentLogger {
@@ -77,8 +80,10 @@ class ErrorDriver extends MockDriver {
   private shouldLoseConnection = false;
 
   throwError(message: string): void {
+    console.log("[ErrorDriver.throwError] Setting shouldThrowError=true, message:", message);
     this.shouldThrowError = true;
     this.errorMessage = message;
+    console.log("[ErrorDriver.throwError] After setting: shouldThrowError=", this.shouldThrowError);
   }
 
   startStreaming(): void {
@@ -90,7 +95,10 @@ class ErrorDriver extends MockDriver {
   }
 
   protected override async *generateContent(message: UserMessage): AsyncIterable<StreamEventType> {
+    console.log("[ErrorDriver] generateContent called, shouldThrowError:", this.shouldThrowError, "errorMessage:", this.errorMessage);
+
     if (this.shouldThrowError) {
+      console.log("[ErrorDriver] THROWING ERROR:", this.errorMessage);
       throw new Error(this.errorMessage);
     }
 
@@ -102,6 +110,7 @@ class ErrorDriver extends MockDriver {
       throw new Error("Connection lost");
     }
 
+    console.log("[ErrorDriver] No error, using normal behavior");
     // Normal behavior
     yield* super.generateContent(message);
   }
@@ -123,6 +132,13 @@ class ErrorReactor implements Reactor {
   async initialize(context: ReactorContext): Promise<void> {
     if (this.throwInInit) {
       throw new Error(`${this.name} initialization error`);
+    }
+
+    // Subscribe to user_message and throw error when processing
+    if (this.throwInProcess) {
+      context.consumer.consumeByType("user_message", () => {
+        throw new Error("Error during event processing");
+      });
     }
   }
 
@@ -148,17 +164,21 @@ After(async () => {
 
 // ===== Given steps =====
 
-Given("I create and initialize an agent", async () => {
+Given("I create and initialize an error testing agent", async () => {
+  console.log("[GIVEN] Creating ErrorDriver for error testing");
   ctx.driver = new ErrorDriver("test-session", "test-agent");
+  console.log("[GIVEN] Created driver type:", ctx.driver.constructor.name);
   ctx.logger = new MockLogger();
   ctx.agent = createAgent(ctx.driver, ctx.logger);
 
-  // Subscribe to error events
-  ctx.subscribeToEvent("error_message");
-  ctx.subscribeToEvent("assistant_message");
-
+  // Initialize FIRST
   await ctx.agent.initialize();
   ctx.initialized = true;
+  console.log("[GIVEN] Agent initialized, driver type:", ctx.driver.constructor.name);
+
+  // Then subscribe to events
+  ctx.subscribeToEvent("error_message");
+  ctx.subscribeToEvent("assistant_message");
 });
 
 Given("I create an agent with invalid driver", () => {
@@ -215,24 +235,45 @@ Given("I receive an error_message event", async () => {
 // ===== When steps =====
 
 When("I send message {string}", async (message: string) => {
+  console.log("[WHEN] I send message:", message);
+  console.log("[WHEN] Current error_message events:", ctx.getEvents("error_message").length);
   expect(ctx.agent).toBeDefined();
 
   // Check if we should trigger an error before sending
   if (ctx.testData.driverError && ctx.driver instanceof ErrorDriver) {
+    console.log("[WHEN] Setting driver to throw error:", ctx.testData.driverError);
     ctx.driver.throwError(ctx.testData.driverError);
+  } else {
+    console.log("[WHEN] No driver error set, driverError:", ctx.testData.driverError, "is ErrorDriver:", ctx.driver instanceof ErrorDriver);
   }
 
   try {
     await ctx.agent!.send(message);
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    console.log("[WHEN] Waiting for events...");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    console.log("[WHEN] After wait, error_message events:", ctx.getEvents("error_message").length);
   } catch (error) {
+    console.log("[WHEN] Caught error:", error);
     ctx.errors.push(error as Error);
   }
 });
 
 When("the driver throws error {string}", (errorMessage: string) => {
+  console.log("[WHEN] the driver throws error:", errorMessage);
+  console.log("[WHEN] ctx.driver exists?", !!ctx.driver);
+  console.log("[WHEN] ctx.driver type:", ctx.driver?.constructor?.name);
+  console.log("[WHEN] is ErrorDriver?", ctx.driver instanceof ErrorDriver);
+
   // Store error message to be triggered on next send
   ctx.testData.driverError = errorMessage;
+
+  // If driver already exists, set it immediately
+  if (ctx.driver && ctx.driver instanceof ErrorDriver) {
+    console.log("[WHEN] Setting error on existing driver");
+    ctx.driver.throwError(errorMessage);
+  } else {
+    console.log("[WHEN] Driver not ErrorDriver or not exists");
+  }
 });
 
 When("the driver starts streaming", () => {

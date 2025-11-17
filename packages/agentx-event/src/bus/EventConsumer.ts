@@ -28,9 +28,9 @@ export interface EventConsumer {
    * @param handler - Callback to handle typed events
    * @returns Unsubscribe function
    */
-  consumeByType<T extends AgentEventType>(
-    type: T["type"],
-    handler: (event: T) => void
+  consumeByType<T extends AgentEventType["type"]>(
+    type: T,
+    handler: (event: Extract<AgentEventType, { type: T }>) => void
   ): Unsubscribe;
 
   /**

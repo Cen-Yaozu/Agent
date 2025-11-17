@@ -39,7 +39,9 @@ export class MockDriver extends BaseAgentDriver {
    * Set a custom response for a specific user message
    */
   setCustomResponse(userMessage: string, response: string): void {
+    console.log(`[MockDriver.setCustomResponse] Setting: "${userMessage}" -> "${response}"`);
     this.customResponses.set(userMessage, response);
+    console.log(`[MockDriver.setCustomResponse] Total custom responses:`, this.customResponses.size);
   }
 
   /**
@@ -65,14 +67,20 @@ export class MockDriver extends BaseAgentDriver {
         ? message.content
         : message.content.map((p) => ("text" in p ? p.text : "")).join("");
 
+    console.log(`[MockDriver.generateContent] User message: "${text}"`);
+    console.log(`[MockDriver.generateContent] Custom responses available:`, Array.from(this.customResponses.keys()));
+
     // Determine response: custom, default, or echo
     let response: string;
     if (this.customResponses.has(text)) {
       response = this.customResponses.get(text)!;
+      console.log(`[MockDriver.generateContent] Using custom response: "${response}"`);
     } else if (this.defaultResponse) {
       response = this.defaultResponse;
+      console.log(`[MockDriver.generateContent] Using default response: "${response}"`);
     } else {
       response = `You said: ${text}`;
+      console.log(`[MockDriver.generateContent] Using echo response: "${response}"`);
     }
 
     // Start text block

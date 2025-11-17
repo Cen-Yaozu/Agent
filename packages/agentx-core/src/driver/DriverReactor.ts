@@ -84,7 +84,10 @@ export class DriverReactor implements Reactor {
       return;
     }
 
-    this.context.logger?.debug(`[DriverReactor] Handling user message`, {
+    // Save context reference (might become null during async operations)
+    const context = this.context;
+
+    context.logger?.debug(`[DriverReactor] Handling user message`, {
       messageId: event.data.id,
     });
 
@@ -92,62 +95,66 @@ export class DriverReactor implements Reactor {
     this.abortController = new AbortController();
 
     try {
+      console.log("[DriverReactor] Starting to iterate driver stream");
+
       // Iterate through Stream events from driver
       for await (const streamEvent of this.driver.sendMessage(event.data)) {
-        // Check if aborted
-        if (this.abortController.signal.aborted) {
-          this.context.logger?.debug(`[DriverReactor] Stream aborted`, {
+        // Check if aborted (null-safe check)
+        if (this.abortController?.signal.aborted) {
+          context.logger?.debug(`[DriverReactor] Stream aborted`, {
             messageId: event.data.id,
           });
           break;
         }
 
         // Forward event to EventBus (no transformation needed)
-        this.context.producer.produce(streamEvent);
+        context.producer.produce(streamEvent);
 
-        this.context.logger?.debug(`[DriverReactor] Stream event forwarded`, {
+        context.logger?.debug(`[DriverReactor] Stream event forwarded`, {
           eventType: streamEvent.type,
           messageId: event.data.id,
         });
       }
 
-      this.context.logger?.info(`[DriverReactor] Message processing complete`, {
+      console.log("[DriverReactor] Stream iteration completed successfully");
+      context.logger?.info(`[DriverReactor] Message processing complete`, {
         messageId: event.data.id,
       });
     } catch (error) {
-      // Check if context still exists (might be null if destroyed during processing)
-      if (this.context) {
-        this.context.logger?.error(`[DriverReactor] Error processing stream`, {
-          error,
-          messageId: event.data.id,
-        });
+      console.log("[DriverReactor] CAUGHT ERROR:", error);
 
-        // Create and emit ErrorMessageEvent
-        const errorMessage: ErrorMessage = {
-          id: `error_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-          role: "error",
-          subtype: "llm",
-          severity: "error",
-          message: error instanceof Error ? error.message : String(error),
-          code: "DRIVER_ERROR",
-          recoverable: true,
-          stack: error instanceof Error ? error.stack : undefined,
-          timestamp: Date.now(),
-        };
+      // Use saved context reference (always available even if this.context became null)
+      console.log("[DriverReactor] Emitting error_message event");
 
-        const errorEvent: ErrorMessageEvent = {
-          type: "error_message",
-          data: errorMessage,
-          uuid: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-          agentId: this.context.agentId,
-          timestamp: Date.now(),
-        };
+      context.logger?.error(`[DriverReactor] Error processing stream`, {
+        error,
+        messageId: event.data.id,
+      });
 
-        this.context.producer.produce(errorEvent);
-      } else {
-        // Context was destroyed, just log to console
-        console.error("[DriverReactor] Error processing stream (context destroyed):", error);
-      }
+      // Create and emit ErrorMessageEvent
+      const errorMessage: ErrorMessage = {
+        id: `error_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        role: "error",
+        subtype: "llm",
+        severity: "error",
+        message: error instanceof Error ? error.message : String(error),
+        code: "DRIVER_ERROR",
+        recoverable: true,
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: Date.now(),
+      };
+
+      const errorEvent: ErrorMessageEvent = {
+        type: "error_message",
+        data: errorMessage,
+        uuid: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        agentId: context.agentId,
+        timestamp: Date.now(),
+      };
+
+      console.log("[DriverReactor] About to produce error event:", errorEvent);
+      context.producer.produce(errorEvent);
+      console.log("[DriverReactor] Error event produced");
     } finally {
       this.abortController = null;
     }

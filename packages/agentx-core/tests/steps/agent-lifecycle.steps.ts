@@ -117,8 +117,15 @@ Given("I create and initialize an agent", async () => {
   ctx.driver = new MockDriver("test-session", "test-agent");
   ctx.logger = new MockLogger();
   ctx.agent = createAgent(ctx.driver, ctx.logger);
+
+  // Initialize FIRST
   await ctx.agent.initialize();
   ctx.initialized = true;
+
+  // Then subscribe to events
+  ctx.subscribeToEvent("user_message");
+  ctx.subscribeToEvent("assistant_message");
+  ctx.subscribeToEvent("error_message");
 });
 
 Given("I create an agent service without initialization", () => {

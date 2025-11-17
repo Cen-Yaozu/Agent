@@ -39,6 +39,7 @@ import type {
   ToolCallPart,
   ToolResultPart,
 } from "@deepractice-ai/agentx-types";
+import { emitError } from "./utils/emitError";
 
 /**
  * Pending content accumulator
@@ -280,6 +281,23 @@ export class AgentMessageAssembler implements Reactor {
       this.pendingContents.delete(index);
     } catch (error) {
       console.error("[AgentMessageAssembler] Failed to parse tool input JSON:", error);
+
+      // Emit error_message event
+      if (this.context) {
+        emitError(
+          this.context.producer,
+          error instanceof Error ? error : new Error(String(error)),
+          "validation",
+          {
+            agentId: this.context.agentId,
+            componentName: "MessageAssembler",
+          },
+          {
+            code: "TOOL_INPUT_PARSE_ERROR",
+            details: { toolInputJson: pending.toolInputJson },
+          }
+        );
+      }
     }
   }
 

@@ -67,11 +67,13 @@ export class TestContext {
 
     const unsubscribe = this.agent.react({
       [handlerName]: (event: AgentEvent) => {
-        console.log(`[CONTEXT] Event received: ${eventType}`, {
+        console.log(`[CONTEXT] ✅ Event received: ${eventType}`, {
           eventType: event.type,
-          dataKeys: Object.keys(event.data || {})
+          dataKeys: Object.keys(event.data || {}),
+          eventData: event.data
         });
         this.events[eventType].push(event);
+        console.log(`[CONTEXT] Event stored. Total ${eventType} events:`, this.events[eventType].length);
       },
     });
 

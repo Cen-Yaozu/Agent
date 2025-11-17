@@ -83,6 +83,3 @@ export { LogLevel, LogFormatter } from "./AgentLogger";
 // Export Reactor Pattern (Advanced - for custom implementations)
 export type { Reactor, ReactorContext } from "./reactor";
 export { ReactorRegistry, type ReactorRegistryConfig } from "./reactor";
-
-// Note: User event handlers are registered via agent.react({ onEventName() {} })
-// No need to export type-safe Reactor interfaces for users anymore

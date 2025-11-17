@@ -10,7 +10,7 @@ import type {
   StateReactor,
   MessageReactor,
   ExchangeReactor,
-} from "@deepractice-ai/agentx-core";
+} from "../reactors";
 
 import type {
   // Stream events

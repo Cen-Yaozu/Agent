@@ -52,6 +52,7 @@ import type {
   EventConsumer,
   Unsubscribe,
 } from "@deepractice-ai/agentx-event";
+import { emitError } from "./utils/emitError";
 
 /**
  * AgentService
@@ -111,6 +112,25 @@ export class AgentService {
   async send(message: string): Promise<void> {
     if (!this.consumer) {
       throw new Error("[AgentService] Agent not initialized. Call initialize() first.");
+    }
+
+    // Validate message
+    if (!message || message.trim().length === 0) {
+      const producer = this.engine.eventBus.createProducer();
+      emitError(
+        producer,
+        "Message cannot be empty",
+        "validation",
+        {
+          agentId: this.id,
+          componentName: "AgentService",
+        },
+        {
+          code: "EMPTY_MESSAGE",
+          severity: "error",
+        }
+      );
+      throw new Error("Message cannot be empty");
     }
 
     this.logger?.debug("[AgentService] Sending user message", {

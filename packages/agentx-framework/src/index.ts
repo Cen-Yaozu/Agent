@@ -137,28 +137,30 @@ export type {
 } from "@deepractice-ai/agentx-event";
 
 // ==================== Reactors (Event Handlers) ====================
-// Re-export from @deepractice-ai/agentx-core
 
+// Core reactor types (from @deepractice-ai/agentx-core)
 export type {
-  // Generic reactor type
   Reactor,
-
-  // Stream layer reactors
-  StreamReactor,
-  PartialStreamReactor,
-
-  // State layer reactors
-  StateReactor,
-  PartialStateReactor,
-
-  // Message layer reactors
-  MessageReactor,
-  PartialMessageReactor,
-
-  // Exchange layer reactors
-  ExchangeReactor,
-  PartialExchangeReactor,
+  ReactorContext,
 } from "@deepractice-ai/agentx-core";
+
+// 4-layer user-facing reactor interfaces (framework-provided)
+export type {
+  StreamReactor,
+  StateReactor,
+  MessageReactor,
+  ExchangeReactor,
+} from "./reactors";
+
+// Reactor adapters (for advanced framework usage)
+export {
+  StreamReactorAdapter,
+  StateReactorAdapter,
+  MessageReactorAdapter,
+  ExchangeReactorAdapter,
+  wrapUserReactor,
+  type UserReactor,
+} from "./reactors";
 
 // ==================== Platform Abstraction ====================
 // Re-export from @deepractice-ai/agentx-core
@@ -179,9 +181,9 @@ export type { AgentLogger, LogContext } from "@deepractice-ai/agentx-core";
 export { LogLevel, LogFormatter } from "@deepractice-ai/agentx-core";
 
 /**
- * RuntimeConfig - for configuring agent runtime
+ * EngineConfig - for configuring agent engine runtime
  */
-export type { RuntimeConfig } from "@deepractice-ai/agentx-core";
+export type { EngineConfig } from "@deepractice-ai/agentx-core";
 
 // ==================== Agent Definition (Vue-like API) ====================
 // Framework's high-level API for defining agents
@@ -226,23 +228,21 @@ export type {
 
 export { AgentConfigError, AgentAbortError } from "./errors";
 
-// ==================== Standard Drivers & Reactors ====================
-// Platform-independent implementations
+// ==================== WebSocket Bridge ====================
+// Bidirectional WebSocket communication for AgentX
 
 /**
  * WebSocketDriver - Client-side WebSocket driver for browser
  * Converts WebSocket messages → Agent events
  */
-export { WebSocketDriver } from "./drivers";
-export type { WebSocketDriverConfig } from "./drivers";
+export { WebSocketDriver, type WebSocketDriverConfig } from "./ws";
 
 /**
  * WebSocketReactor - Server-side event forwarder
  * Converts Agent events → WebSocket messages
  * Implements all 4 reactor layers (Stream, State, Message, Exchange)
  */
-export { WebSocketReactor } from "./reactors";
-export type { WebSocketLike } from "./reactors";
+export { WebSocketReactor, type WebSocketLike } from "./ws";
 
 // ==================== MCP (Model Context Protocol) ====================
 // Re-export from @deepractice-ai/agentx-types (for users working with MCP servers)

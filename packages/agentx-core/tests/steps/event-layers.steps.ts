@@ -101,9 +101,14 @@ Given("I subscribe to {string} event", (eventType: string) => {
 // ===== When steps =====
 
 When("the driver emits text deltas {string}, {string}, {string}, {string}", async (...deltas: string[]) => {
-  // MockDriver will emit these automatically when we send a message
+  // Configure MockDriver to return the expected text
+  const expectedText = deltas.join("");
+  console.log("[WHEN] Setting custom response for deltas:", expectedText);
+  if (ctx.driver && ctx.driver instanceof MockDriver) {
+    ctx.driver.setCustomResponse("test", expectedText);
+  }
   await ctx.agent!.send("test");
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  await new Promise((resolve) => setTimeout(resolve, 300));
 });
 
 When("I send message {string}", async (message: string) => {
@@ -113,8 +118,13 @@ When("I send message {string}", async (message: string) => {
 });
 
 When("the driver completes a response with content {string}", async (content: string) => {
-  // MockDriver responds automatically
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  // Configure MockDriver to return the expected content
+  console.log("[WHEN] Setting custom response for content:", content);
+  if (ctx.driver && ctx.driver instanceof MockDriver) {
+    ctx.driver.setCustomResponse("test", content);
+  }
+  await ctx.agent!.send("test");
+  await new Promise((resolve) => setTimeout(resolve, 300));
 });
 
 When("the driver responds with {int} input tokens and {int} output tokens", async (inputTokens: number, outputTokens: number) => {
@@ -140,16 +150,25 @@ When("I receive an assistant message event", async () => {
   await new Promise((resolve) => setTimeout(resolve, 50));
 });
 
-When("I try to modify the event data", () => {
+When("I try to modify the event data", async () => {
+  // Wait for assistant_message event to arrive
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
   const events = ctx.getEvents("assistant_message");
+  console.log("[WHEN] Trying to modify event data, events:", events.length);
+
   if (events.length > 0) {
     try {
       // Try to modify (should be immutable or have no effect)
       (events[0].data as any).content = "MODIFIED";
       ctx.testData.modificationAttempted = true;
+      console.log("[WHEN] Modified event data to:", (events[0].data as any).content);
     } catch (error) {
       ctx.testData.modificationError = error;
     }
+  } else {
+    console.log("[WHEN] No assistant_message events found!");
+    ctx.testData.modificationAttempted = false;
   }
 });
 
