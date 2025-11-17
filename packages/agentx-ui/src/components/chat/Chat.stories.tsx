@@ -1,7 +1,27 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { useState } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { Chat } from "./Chat";
-import { createAgent, LogLevel } from "@deepractice-ai/agentx-browser";
+import { WebSocketBrowserAgent } from "@deepractice-ai/agentx-framework/browser";
+import type { AgentService } from "@deepractice-ai/agentx-framework/browser";
+
+/**
+ * Wrapper component to handle agent initialization
+ */
+function ChatStory({ children, agent }: { children: (agent: AgentService) => ReactNode; agent: AgentService }) {
+  useEffect(() => {
+    agent.initialize().catch((error) => {
+      console.error("[Story] Failed to initialize agent:", error);
+    });
+
+    return () => {
+      agent.destroy().catch((error) => {
+        console.error("[Story] Failed to destroy agent:", error);
+      });
+    };
+  }, [agent]);
+
+  return <>{children(agent)}</>;
+}
 
 const meta: Meta<typeof Chat> = {
   title: "Chat/Chat",
@@ -32,23 +52,20 @@ type Story = StoryObj<typeof Chat>;
 export const LiveChat: Story = {
   render: () => {
     const [agent] = useState(() =>
-      createAgent(
-        {
-          wsUrl: "ws://localhost:5200/ws",
-          sessionId: `story-chat-${Date.now()}`,
-        },
-        {
-          enableLogging: true,
-          logLevel: LogLevel.DEBUG,
-          loggerTag: "LiveChat",
-        }
-      )
+      WebSocketBrowserAgent.create({
+        url: "ws://localhost:5200/ws",
+        sessionId: `story-chat-${Date.now()}`,
+      } as any)
     );
 
     return (
-      <div className="h-screen">
-        <Chat agent={agent} />
-      </div>
+      <ChatStory agent={agent}>
+        {(agent) => (
+          <div className="h-screen">
+            <Chat agent={agent} />
+          </div>
+        )}
+      </ChatStory>
     );
   },
 };
@@ -65,23 +82,20 @@ export const LiveChat: Story = {
 export const WithLogging: Story = {
   render: () => {
     const [agent] = useState(() =>
-      createAgent(
-        {
-          wsUrl: "ws://localhost:5200/ws",
-          sessionId: `story-debug-${Date.now()}`,
-        },
-        {
-          enableLogging: true,
-          logLevel: LogLevel.DEBUG,
-          loggerTag: "ChatStory",
-        }
-      )
+      WebSocketBrowserAgent.create({
+        url: "ws://localhost:5200/ws",
+        sessionId: `story-debug-${Date.now()}`,
+      } as any)
     );
 
     return (
-      <div className="h-screen">
-        <Chat agent={agent} />
-      </div>
+      <ChatStory agent={agent}>
+        {(agent) => (
+          <div className="h-screen">
+            <Chat agent={agent} />
+          </div>
+        )}
+      </ChatStory>
     );
   },
 };
@@ -94,33 +108,37 @@ export const WithLogging: Story = {
 export const WithInitialMessages: Story = {
   render: () => {
     const [agent] = useState(() =>
-      createAgent({
-        wsUrl: "ws://localhost:5200/ws",
+      WebSocketBrowserAgent.create({
+        url: "ws://localhost:5200/ws",
         sessionId: `story-history-${Date.now()}`,
-      })
+      } as any)
     );
 
     return (
-      <div className="h-screen">
-        <Chat
-          agent={agent}
-          initialMessages={[
-            {
-              id: "1",
-              role: "user",
-              content: "Hello! What can you help me with?",
-              timestamp: Date.now() - 60000,
-            },
-            {
-              id: "2",
-              role: "assistant",
-              content:
-                "Hello! I can help you with a variety of tasks including coding, answering questions, and providing explanations. What would you like to know?",
-              timestamp: Date.now() - 30000,
-            },
-          ]}
-        />
-      </div>
+      <ChatStory agent={agent}>
+        {(agent) => (
+          <div className="h-screen">
+            <Chat
+              agent={agent}
+              initialMessages={[
+                {
+                  id: "1",
+                  role: "user",
+                  content: "Hello! What can you help me with?",
+                  timestamp: Date.now() - 60000,
+                },
+                {
+                  id: "2",
+                  role: "assistant",
+                  content:
+                    "Hello! I can help you with a variety of tasks including coding, answering questions, and providing explanations. What would you like to know?",
+                  timestamp: Date.now() - 30000,
+                },
+              ]}
+            />
+          </div>
+        )}
+      </ChatStory>
     );
   },
 };
@@ -133,10 +151,10 @@ export const WithInitialMessages: Story = {
 export const WithSendCallback: Story = {
   render: () => {
     const [agent] = useState(() =>
-      createAgent({
-        wsUrl: "ws://localhost:5200/ws",
+      WebSocketBrowserAgent.create({
+        url: "ws://localhost:5200/ws",
         sessionId: `story-callback-${Date.now()}`,
-      })
+      } as any)
     );
 
     const handleMessageSend = (message: string) => {
@@ -145,9 +163,13 @@ export const WithSendCallback: Story = {
     };
 
     return (
-      <div className="h-screen">
-        <Chat agent={agent} onMessageSend={handleMessageSend} />
-      </div>
+      <ChatStory agent={agent}>
+        {(agent) => (
+          <div className="h-screen">
+            <Chat agent={agent} onMessageSend={handleMessageSend} />
+          </div>
+        )}
+      </ChatStory>
     );
   },
 };
@@ -158,16 +180,20 @@ export const WithSendCallback: Story = {
 export const CompactView: Story = {
   render: () => {
     const [agent] = useState(() =>
-      createAgent({
-        wsUrl: "ws://localhost:5200/ws",
+      WebSocketBrowserAgent.create({
+        url: "ws://localhost:5200/ws",
         sessionId: `story-compact-${Date.now()}`,
-      })
+      } as any)
     );
 
     return (
-      <div className="h-[600px] border rounded-lg">
-        <Chat agent={agent} />
-      </div>
+      <ChatStory agent={agent}>
+        {(agent) => (
+          <div className="h-[600px] border rounded-lg">
+            <Chat agent={agent} />
+          </div>
+        )}
+      </ChatStory>
     );
   },
 };
@@ -178,27 +204,35 @@ export const CompactView: Story = {
 export const SideBySide: Story = {
   render: () => {
     const [agent1] = useState(() =>
-      createAgent({
-        wsUrl: "ws://localhost:5200/ws",
+      WebSocketBrowserAgent.create({
+        url: "ws://localhost:5200/ws",
         sessionId: `story-left-${Date.now()}`,
-      })
+      } as any)
     );
 
     const [agent2] = useState(() =>
-      createAgent({
-        wsUrl: "ws://localhost:5200/ws",
+      WebSocketBrowserAgent.create({
+        url: "ws://localhost:5200/ws",
         sessionId: `story-right-${Date.now()}`,
-      })
+      } as any)
     );
 
     return (
       <div className="h-screen flex gap-4 p-4">
-        <div className="flex-1 border rounded-lg overflow-hidden">
-          <Chat agent={agent1} />
-        </div>
-        <div className="flex-1 border rounded-lg overflow-hidden">
-          <Chat agent={agent2} />
-        </div>
+        <ChatStory agent={agent1}>
+          {(agent) => (
+            <div className="flex-1 border rounded-lg overflow-hidden">
+              <Chat agent={agent} />
+            </div>
+          )}
+        </ChatStory>
+        <ChatStory agent={agent2}>
+          {(agent) => (
+            <div className="flex-1 border rounded-lg overflow-hidden">
+              <Chat agent={agent} />
+            </div>
+          )}
+        </ChatStory>
       </div>
     );
   },
@@ -210,24 +244,28 @@ export const SideBySide: Story = {
 export const InLayout: Story = {
   render: () => {
     const [agent] = useState(() =>
-      createAgent({
-        wsUrl: "ws://localhost:5200/ws",
+      WebSocketBrowserAgent.create({
+        url: "ws://localhost:5200/ws",
         sessionId: `story-layout-${Date.now()}`,
-      })
+      } as any)
     );
 
     return (
-      <div className="h-screen flex flex-col">
-        {/* Header */}
-        <div className="h-14 border-b flex items-center px-4 bg-white dark:bg-gray-800">
-          <h1 className="font-semibold text-lg">Deepractice Agent</h1>
-        </div>
+      <ChatStory agent={agent}>
+        {(agent) => (
+          <div className="h-screen flex flex-col">
+            {/* Header */}
+            <div className="h-14 border-b flex items-center px-4 bg-white dark:bg-gray-800">
+              <h1 className="font-semibold text-lg">Deepractice Agent</h1>
+            </div>
 
-        {/* Chat area */}
-        <div className="flex-1">
-          <Chat agent={agent} />
-        </div>
-      </div>
+            {/* Chat area */}
+            <div className="flex-1">
+              <Chat agent={agent} />
+            </div>
+          </div>
+        )}
+      </ChatStory>
     );
   },
 };

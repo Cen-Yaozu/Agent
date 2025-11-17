@@ -302,6 +302,7 @@ export { WebSocketReactor, type WebSocketLike, type WebSocketReactorConfig } fro
  * ClaudeAgent - Pre-configured Agent using Claude SDK
  * @example
  * ```typescript
+ * import { ClaudeAgent } from "@deepractice-ai/agentx-framework";
  * const agent = ClaudeAgent.create({ apiKey: "xxx" });
  * ```
  */
@@ -312,10 +313,25 @@ export { ClaudeAgent } from "./agents";
  * Demonstrates Agent-as-Driver pattern: ClaudeAgent → WebSocketReactor
  * @example
  * ```typescript
+ * import { WebSocketServerAgent } from "@deepractice-ai/agentx-framework";
  * const agent = WebSocketServerAgent.create({ apiKey: "xxx", ws: websocket });
  * ```
  */
 export { WebSocketServerAgent } from "./agents";
+
+/**
+ * WebSocketBrowserAgent - Browser WebSocket client agent
+ * Connects to WebSocketServer and receives streaming events
+ * @example
+ * ```typescript
+ * import { WebSocketBrowserAgent } from "@deepractice-ai/agentx-framework";
+ * const agent = WebSocketBrowserAgent.create({
+ *   url: "ws://localhost:5200/ws",
+ *   sessionId: "my-session"
+ * });
+ * ```
+ */
+export { WebSocketBrowserAgent } from "./agents";
 
 // ==================== MCP (Model Context Protocol) ====================
 // Re-export from @deepractice-ai/agentx-types (for users working with MCP servers)
@@ -348,3 +364,22 @@ export {
   LATEST_PROTOCOL_VERSION,
   SUPPORTED_PROTOCOL_VERSIONS,
 } from "@deepractice-ai/agentx-types";
+
+// ==================== Server Utilities (Temporary) ====================
+// TODO: This will be replaced by proper Session abstraction
+// See: /issues/001-session-abstraction-design.md
+
+/**
+ * WebSocketServer - WebSocket server for multi-session agent handling
+ * @example
+ * ```typescript
+ * import { createWebSocketServer, ClaudeAgent } from "@deepractice-ai/agentx-framework";
+ *
+ * const server = createWebSocketServer({
+ *   agentDefinition: ClaudeAgent,
+ *   createAgentConfig: () => ({ apiKey: process.env.ANTHROPIC_API_KEY }),
+ *   port: 5200
+ * });
+ * ```
+ */
+export { WebSocketServer, createWebSocketServer, type WebSocketServerConfig } from "./server";

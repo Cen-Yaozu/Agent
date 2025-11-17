@@ -14,8 +14,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Paths to watch
-const AGENTX_NODE_SRC = resolve(__dirname, "../../agentx-node/src");
-const AGENTX_NODE_DIST = resolve(__dirname, "../../agentx-node/dist");
+const AGENTX_FRAMEWORK_SRC = resolve(__dirname, "../../agentx-framework/src");
+const AGENTX_FRAMEWORK_DIST = resolve(__dirname, "../../agentx-framework/dist");
 
 let serverProcess: ChildProcess | null = null;
 let isRebuilding = false;
@@ -71,13 +71,13 @@ function stopServer(): Promise<void> {
 }
 
 /**
- * Rebuild agentx-node package
+ * Rebuild agentx-framework package
  */
 async function rebuildDependency(): Promise<boolean> {
-  console.log("\n📦 Rebuilding agentx-node...");
+  console.log("\n📦 Rebuilding agentx-framework...");
 
   return new Promise((resolve) => {
-    const buildProcess = spawn("pnpm", ["--filter", "@deepractice-ai/agentx-node", "build"], {
+    const buildProcess = spawn("pnpm", ["--filter", "@deepractice-ai/agentx-framework", "build"], {
       stdio: "inherit",
       cwd: resolve(__dirname, "../../.."), // Go to monorepo root
     });
@@ -126,10 +126,10 @@ async function handleChange(filename: string) {
  */
 function setupWatchers() {
   console.log("👀 Watching for changes...");
-  console.log(`   - ${AGENTX_NODE_SRC}`);
+  console.log(`   - ${AGENTX_FRAMEWORK_SRC}`);
 
   const watcher = watch(
-    AGENTX_NODE_SRC,
+    AGENTX_FRAMEWORK_SRC,
     { recursive: true },
     (eventType, filename) => {
       if (filename && filename.endsWith(".ts")) {
@@ -161,7 +161,7 @@ async function main() {
   setupWatchers();
 
   console.log("\n💡 Tips:");
-  console.log("   - Edit files in agentx-node/src to trigger rebuild");
+  console.log("   - Edit files in agentx-framework/src to trigger rebuild");
   console.log("   - WebSocket clients will auto-reconnect");
   console.log("   - Press Ctrl+C to stop\n");
 }

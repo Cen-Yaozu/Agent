@@ -11,6 +11,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
     }
   },
   "files": [
@@ -26,10 +30,12 @@
     "@anthropic-ai/claude-agent-sdk": "^0.1.30",
     "@deepractice-ai/agentx-core": "workspace:*",
     "@deepractice-ai/agentx-event": "workspace:*",
-    "@deepractice-ai/agentx-types": "workspace:*"
+    "@deepractice-ai/agentx-types": "workspace:*",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.13",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2"
   },

@@ -2,10 +2,10 @@
  * Development WebSocket Server for agentx-ui
  *
  * This server runs alongside Storybook for local UI development.
- * Provides a real Claude Agent connection for testing components.
+ * Uses the new AgentX Framework with automatic session management.
  */
 
-import { createAgent, createWebSocketServer } from "@deepractice-ai/agentx-node";
+import { createWebSocketServer, ClaudeAgent } from "@deepractice-ai/agentx-framework";
 import { config } from "dotenv";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -40,44 +40,38 @@ async function startDevServer() {
   }
   console.log();
 
-  // Create Agent
-  const agent = createAgent(
-    {
+  // Create WebSocket Server with automatic session management
+  const server = createWebSocketServer({
+    // Agent definition - ClaudeAgent will be instantiated for each connection
+    agentDefinition: ClaudeAgent,
+
+    // Agent config factory - called for each new connection
+    createAgentConfig: () => ({
       apiKey,
       baseUrl,
       model: "claude-sonnet-4-20250514",
       systemPrompt: "You are a helpful AI assistant for UI development testing.",
-    },
-    {
-      enableLogging: true,
-      prettyLogs: true,
-      logLevel: "debug",
-      logDestination: resolve(__dirname, "../logs/dev-server.log"),
-    }
-  );
+    }),
 
-  console.log(`📄 Logs: ${resolve(__dirname, "../logs/dev-server.log")}`);
-
-  // Create WebSocket Server
-  const wsServer = createWebSocketServer({
-    agent,
+    // Server configuration
     port: 5200,
     host: "0.0.0.0",
+    path: "/ws",
   });
 
   console.log("✅ WebSocket Server Started");
-  console.log(`   URL: ${wsServer.getUrl()}\n`);
-  console.log("📦 Agent Info:");
-  console.log(`   ID: ${agent.id}`);
-  console.log(`   Session: ${agent.sessionId}\n`);
+  console.log(`   URL: ${server.getUrl()}\n`);
   console.log("💡 Ready for UI development!");
   console.log("   Run 'pnpm storybook' in another terminal\n");
+  console.log("📦 Framework: AgentX Framework v2");
+  console.log("   • Automatic session management (one Agent per connection)");
+  console.log("   • Real-time event streaming");
+  console.log("   • Full Claude SDK features\n");
 
   // Graceful shutdown
   process.on("SIGINT", async () => {
     console.log("\n\n🛑 Shutting down...");
-    await wsServer.close();
-    agent.destroy();
+    await server.close();
     console.log("✅ Server stopped");
     process.exit(0);
   });

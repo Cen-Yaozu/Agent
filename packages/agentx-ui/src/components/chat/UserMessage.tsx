@@ -2,6 +2,8 @@ import type { UserMessage as UserMessageType } from "@deepractice-ai/agentx-type
 import { MessageAvatar } from "~/components/elements/MessageAvatar";
 import { User } from "lucide-react";
 import { TextContent } from "./parts/TextContent";
+import { ImageContent } from "./parts/ImageContent";
+import { FileContent } from "./parts/FileContent";
 
 export interface UserMessageProps {
   /**
@@ -16,7 +18,8 @@ export interface UserMessageProps {
  * Features:
  * - User avatar (amber color)
  * - Text content rendering
- * - Image parts support (future)
+ * - Image parts support
+ * - File parts support
  *
  * @example
  * ```tsx
@@ -41,16 +44,35 @@ export function UserMessage({ message }: UserMessageProps) {
         />
 
         {/* Content */}
-        <div className="pl-3 sm:pl-0">
+        <div className="pl-3 sm:pl-0 space-y-2">
           {typeof message.content === "string" ? (
             <TextContent text={message.content} />
           ) : (
             message.content.map((part, idx) => {
-              if (part.type === "text") {
-                return <TextContent key={idx} text={part.text} />;
+              switch (part.type) {
+                case "text":
+                  return <TextContent key={idx} text={part.text} />;
+                case "image":
+                  return (
+                    <ImageContent
+                      key={idx}
+                      data={part.data}
+                      mediaType={part.mediaType}
+                      name={part.name}
+                    />
+                  );
+                case "file":
+                  return (
+                    <FileContent
+                      key={idx}
+                      data={part.data}
+                      mediaType={part.mediaType}
+                      filename={part.filename}
+                    />
+                  );
+                default:
+                  return null;
               }
-              // TODO: Support image parts
-              return null;
             })
           )}
         </div>

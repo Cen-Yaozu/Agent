@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { ErrorMessage } from "./ErrorMessage";
-import type { ErrorEvent } from "@deepractice-ai/agentx-api";
+import type { ErrorMessage as ErrorMessageType } from "@deepractice-ai/agentx-types";
 
 const meta = {
   title: "Chat/ErrorMessage",
@@ -16,22 +16,21 @@ type Story = StoryObj<typeof meta>;
 
 // Base error template
 const createError = (
-  subtype: ErrorEvent["subtype"],
-  severity: ErrorEvent["severity"],
+  subtype: ErrorMessageType["subtype"],
+  severity: ErrorMessageType["severity"],
   message: string,
   code?: string,
   recoverable = true,
   details?: unknown
-): ErrorEvent => ({
-  type: "error",
+): ErrorMessageType => ({
+  id: `error_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+  role: "error",
   subtype,
   severity,
   message,
   code,
   recoverable,
   details,
-  uuid: `error_${Date.now()}`,
-  sessionId: "session_example",
   timestamp: Date.now(),
 });
 

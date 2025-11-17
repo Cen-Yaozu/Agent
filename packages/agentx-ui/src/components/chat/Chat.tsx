@@ -1,18 +1,25 @@
-import { useState, useEffect, useMemo } from "react";
-import type { Agent } from "@deepractice-ai/agentx-browser";
-import type { Message } from "@deepractice-ai/agentx-types";
-import type { ErrorEvent } from "@deepractice-ai/agentx-api";
-import { EventHandlerChain, ALL_EVENT_TYPES } from "@deepractice-ai/agentx-api";
+import { useState, useEffect } from "react";
+import type { AgentService } from "@deepractice-ai/agentx-framework/browser";
+import type { Message } from "@deepractice-ai/agentx-framework/browser";
+import type {
+  ErrorMessageEvent,
+  TextDeltaEvent,
+  UserMessageEvent,
+  AssistantMessageEvent,
+  ToolUseMessageEvent,
+  ConversationStartStateEvent,
+  ConversationEndStateEvent,
+  ErrorMessage as ErrorMessageType,
+} from "@deepractice-ai/agentx-framework/browser";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatInput } from "./ChatInput";
 import { ErrorMessage } from "./ErrorMessage";
-import { UserEventHandler, AssistantEventHandler, ToolUseEventHandler } from "~/handlers";
 
 export interface ChatProps {
   /**
-   * Agent instance from agentx-browser
+   * Agent instance from agentx-framework
    */
-  agent: Agent;
+  agent: AgentService;
 
   /**
    * Initial messages to display
@@ -39,17 +46,18 @@ export interface ChatProps {
  * - Auto-scroll
  * - Loading states
  * - Image attachment support
- * - Full event handling (user, assistant, stream_event, result)
+ * - Full event handling using new Framework API
  *
  * @example
  * ```tsx
- * import { createAgent } from '@deepractice-ai/agentx-browser';
+ * import { WebSocketBrowserAgent } from '@deepractice-ai/agentx-framework/browser';
  *
- * const agent = createAgent({
- *   wsUrl: 'ws://localhost:5200/ws',
+ * const agent = WebSocketBrowserAgent.create({
+ *   url: 'ws://localhost:5200/ws',
  *   sessionId: 'my-session',
  * });
  *
+ * await agent.initialize();
  * <Chat agent={agent} />
  * ```
  */
@@ -57,71 +65,103 @@ export function Chat({ agent, initialMessages = [], onMessageSend, className = "
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [streaming, setStreaming] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<ErrorEvent[]>([]);
-
-  // Create EventHandlerChain (memoized)
-  const eventChain = useMemo(
-    () =>
-      new EventHandlerChain<Message>()
-        .addHandler(new UserEventHandler())
-        .addHandler(new AssistantEventHandler())
-        .addHandler(new ToolUseEventHandler()),
-    []
-  );
+  const [errors, setErrors] = useState<ErrorMessageType[]>([]);
 
   useEffect(() => {
-    console.log("[Chat] Setting up event listeners with EventHandlerChain");
+    console.log("[Chat] Setting up event listeners using agent.react()");
 
-    // Subscribe to all event types
-    const unsubscribes = ALL_EVENT_TYPES.map((eventType) => {
-      if (eventType === "stream_event") {
-        // Special handling for streaming
-        return agent.on(eventType, (event) => {
-          const delta = event.delta;
-          if (delta?.type === "text_delta" && "text" in delta) {
-            console.log("[Chat] stream_event delta:", delta.text);
-            setStreaming((prev) => prev + delta.text);
+    // Use agent.react() - the new Framework API
+    const unsubscribe = agent.react({
+      // Stream layer - handle text deltas for real-time streaming
+      onTextDelta(event: TextDeltaEvent) {
+        console.log("[Chat] text_delta:", event.data.text);
+        setStreaming((prev) => prev + event.data.text);
+      },
+
+      // Message layer - handle complete messages
+      onUserMessage(event: UserMessageEvent) {
+        console.log("[Chat] user_message:", event.uuid);
+        // User messages are already added when handleSend is called
+        // But we update here to ensure consistency with server state
+        const userMsg = event.data;
+        setMessages((prev) => {
+          // Check if message already exists
+          if (prev.some((m) => m.id === userMsg.id)) {
+            return prev;
           }
+          return [...prev, userMsg];
         });
-      }
+      },
 
-      if (eventType === "error") {
-        // Special handling for errors
-        return agent.on(eventType, (event) => {
-          console.error("[Chat] error event received:", event);
-          setErrors((prev) => [...prev, event]);
-          setIsLoading(false);
+      onAssistantMessage(event: AssistantMessageEvent) {
+        console.log("[Chat] assistant_message:", event.uuid);
+        const assistantMsg = event.data;
+
+        setMessages((prev) => {
+          // Check if message already exists
+          if (prev.some((m) => m.id === assistantMsg.id)) {
+            return prev;
+          }
+          return [...prev, assistantMsg];
         });
-      }
 
-      if (eventType === "assistant") {
-        // Clear streaming state when assistant message completes
-        return agent.on(eventType, (event) => {
-          console.log("[Chat] assistant event received:", event.uuid);
-          const msgs = eventChain.process(event);
-          setMessages((prev) => [...prev, ...msgs]);
-          setStreaming("");
-          setIsLoading(false);
+        // Clear streaming when complete message arrives
+        setStreaming("");
+        setIsLoading(false);
+      },
+
+      onToolUseMessage(event: ToolUseMessageEvent) {
+        console.log("[Chat] tool_use_message:", event.uuid);
+        const toolMsg = event.data;
+
+        setMessages((prev) => {
+          // Check if message already exists
+          if (prev.some((m) => m.id === toolMsg.id)) {
+            return prev;
+          }
+          return [...prev, toolMsg];
         });
-      }
+      },
 
-      // For other events, use the EventHandlerChain
-      return agent.on(eventType, (event) => {
-        console.log(`[Chat] ${eventType} event received:`, event.uuid);
-        const msgs = eventChain.process(event);
-        setMessages((prev) => [...prev, ...msgs]);
-      });
+      // Message layer - handle error messages
+      onErrorMessage(event: ErrorMessageEvent) {
+        console.error("[Chat] error_message:", event);
+        setErrors((prev) => [...prev, event.data]);
+        setIsLoading(false);
+      },
+
+      // State layer - conversation lifecycle
+      onConversationStart(_event: ConversationStartStateEvent) {
+        console.log("[Chat] conversation_start");
+        setIsLoading(true);
+      },
+
+      onConversationEnd(_event: ConversationEndStateEvent) {
+        console.log("[Chat] conversation_end");
+        setIsLoading(false);
+      },
     });
 
     // Cleanup on unmount
     return () => {
-      unsubscribes.forEach((unsub) => unsub());
+      unsubscribe();
     };
-  }, [agent, eventChain]);
+  }, [agent]);
 
   const handleSend = async (text: string) => {
     setIsLoading(true);
     onMessageSend?.(text);
+
+    // Add user message immediately to UI
+    const userMessage: Message = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      role: "user",
+      content: text,
+      timestamp: Date.now(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    // Send to agent
     await agent.send(text);
   };
 
@@ -134,7 +174,7 @@ export function Chat({ agent, initialMessages = [], onMessageSend, className = "
       {errors.length > 0 && (
         <div className="px-2 sm:px-4 md:px-4 pb-2 max-w-4xl mx-auto w-full space-y-2">
           {errors.map((error) => (
-            <ErrorMessage key={error.uuid} error={error} showDetails={true} />
+            <ErrorMessage key={error.id} error={error} showDetails={true} />
           ))}
         </div>
       )}

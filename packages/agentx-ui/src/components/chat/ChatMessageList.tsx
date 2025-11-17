@@ -2,7 +2,7 @@ import { useRef, useEffect } from "react";
 import type { Message } from "@deepractice-ai/agentx-types";
 import { UserMessage } from "./UserMessage";
 import { AssistantMessage } from "./AssistantMessage";
-import { ToolMessage } from "./ToolMessage";
+import { ToolUseMessage } from "./ToolUseMessage";
 import { SystemMessage } from "./SystemMessage";
 
 export interface ChatMessageListProps {
@@ -87,8 +87,8 @@ export function ChatMessageList({
               return <UserMessage key={msg.id} message={msg} />;
             case "assistant":
               return <AssistantMessage key={msg.id} message={msg} />;
-            case "tool":
-              return <ToolMessage key={msg.id} message={msg} />;
+            case "tool-use":
+              return <ToolUseMessage key={msg.id} message={msg} />;
             case "system":
               return <SystemMessage key={msg.id} message={msg} />;
             default:
