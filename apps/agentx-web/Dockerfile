@@ -10,11 +10,14 @@ USER root
 
 WORKDIR /app
 
-# Copy dependencies and built artifacts
-COPY node_modules ./node_modules
-COPY packages ./packages
+# Copy entire monorepo (pre-built on host)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/agentx-web/dist ./apps/agentx-web/dist
+COPY packages ./packages
+COPY apps/agentx-web ./apps/agentx-web
+COPY node_modules ./node_modules
+
+# Set ownership for node user
+RUN chown -R node:node /app
 
 # Environment variables
 ENV NODE_ENV=production \
@@ -48,4 +51,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:5200/ || exit 1
 
 # Start agentx-web server with environment variable mapping
-CMD sh -c 'export AGENTX_API_KEY=${ANTHROPIC_API_KEY}; export AGENTX_BASE_URL=${ANTHROPIC_BASE_URL:-https://api.anthropic.com}; exec node apps/agentx-web/dist/server/index.js'
+WORKDIR /app/apps/agentx-web
+CMD sh -c 'export AGENTX_API_KEY=${ANTHROPIC_API_KEY}; export AGENTX_BASE_URL=${ANTHROPIC_BASE_URL:-https://api.anthropic.com}; exec pnpm start'

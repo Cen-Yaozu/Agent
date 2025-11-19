@@ -62,7 +62,7 @@ async function serveStaticFile(req: IncomingMessage, res: ServerResponse): Promi
     }
 
     // Build full path to file in dist/
-    const fullPath = join(__dirname, "..", filePath);
+    const fullPath = join(__dirname, "../dist", filePath);
 
     // Check if file exists
     try {
@@ -72,7 +72,7 @@ async function serveStaticFile(req: IncomingMessage, res: ServerResponse): Promi
       }
     } catch {
       // File not found, serve index.html for SPA routing
-      const indexPath = join(__dirname, "../index.html");
+      const indexPath = join(__dirname, "../dist/index.html");
       const indexContent = await readFile(indexPath);
       res.writeHead(200, { "Content-Type": "text/html" });
       res.end(indexContent);
