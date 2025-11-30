@@ -54,7 +54,96 @@ runtime/
 - [x] Add `sandbox` field to `Agent` interface
 - [x] Rename `llm/LLMProvider` to `llm/LLM` (model definition)
 
-## Migration Plan
+### Phase 1-6: Runtime Migration (DONE - 2024-11-30)
+
+**Major architectural changes completed:**
+
+- [x] **Unified Runtime API**: `createAgentX(runtime)` works for both server and browser
+- [x] **Simplified AgentDefinition**: Only `name`, `description`, `systemPrompt` (removed driver, config, presenters)
+- [x] **Runtime collects config from environment**: apiKey, baseUrl, model from env vars
+- [x] **Deleted agentx-adk package**: Moved `defineAgent` to `agentx`
+- [x] **Renamed agentx-claude to agentx-node**: Contains `NodeRuntime` and `ClaudeDriver`
+- [x] **Created SSERuntime for browser**: Replaces `createRemoteAgent`
+- [x] **Deleted redundant files**: createRemoteAgent, RemoteAgent, AgentXClient, SSEClientTransport
+
+**Final Architecture - "Define Once, Run Anywhere":**
+
+```typescript
+// Server (Node.js)
+import { createAgentX, defineAgent } from "@deepractice-ai/agentx";
+import { runtime } from "@deepractice-ai/agentx-node";
+
+const MyAgent = defineAgent({
+  name: "Assistant",
+  systemPrompt: "You are a helpful assistant",
+});
+
+const agentx = createAgentX(runtime);
+const agent = agentx.agents.create(MyAgent);
+
+// Browser
+import { createAgentX, defineAgent } from "@deepractice-ai/agentx";
+import { createSSERuntime } from "@deepractice-ai/agentx/client";
+
+const MyAgent = defineAgent({
+  name: "Assistant",
+  systemPrompt: "You are a helpful assistant",
+});
+
+const runtime = createSSERuntime({ serverUrl: "http://...", agentId });
+const agentx = createAgentX(runtime);
+const agent = agentx.agents.create(MyAgent); // Same API!
+```
+
+**Package Structure After Migration:**
+
+```
+packages/
+├── agentx-types/           # Type definitions
+│   └── src/
+│       ├── agent/
+│       │   ├── AgentDefinition.ts  # Simplified: name, description, systemPrompt
+│       │   └── AgentConfig.ts      # Empty (for future use)
+│       ├── agentx/
+│       │   └── defineAgent.ts      # Type for defineAgent
+│       └── runtime/
+│           ├── Runtime.ts          # Runtime interface
+│           ├── RuntimeDriver.ts    # Driver interface with sandbox
+│           ├── container/
+│           └── sandbox/
+│
+├── agentx/                 # Core API
+│   └── src/
+│       ├── defineAgent.ts          # defineAgent implementation
+│       ├── AgentX.ts               # createAgentX(runtime)
+│       ├── managers/
+│       │   └── agent/AgentManager.ts  # Uses runtime.createDriver()
+│       └── client/
+│           ├── SSERuntime.ts       # Browser Runtime
+│           └── SSEDriver.ts        # SSE Driver for browser
+│
+├── agentx-node/            # Node.js Runtime (was agentx-claude)
+│   └── src/
+│       ├── NodeRuntime.ts          # Runtime implementation
+│       ├── ClaudeDriver.ts         # Claude SDK driver
+│       └── index.ts                # exports runtime singleton
+│
+└── [DELETED]
+    ├── agentx-adk/         # Merged into agentx
+    ├── agentx-runtime/     # Merged into agentx-node
+    └── agentx-claude/      # Renamed to agentx-node
+```
+
+**Key Design Principles:**
+
+1. **AgentDefinition = Business Config**: name, description, systemPrompt
+2. **RuntimeConfig = Infrastructure Config**: apiKey, baseUrl, model (from env vars)
+3. **Runtime.createDriver()**: Merges AgentDefinition + RuntimeConfig → Driver
+4. **Two Developer Roles**:
+   - Application Developer: Uses `agentx` package (defineAgent, createAgentX)
+   - Platform Developer: Implements `Runtime` interface
+
+## Original Migration Plan (Superseded)
 
 ### Phase 1: Implement Local Sandbox
 

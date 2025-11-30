@@ -77,7 +77,7 @@ function createFileLogger(name: string, logFile: string) {
 async function startDevServer() {
   // Support both AGENT_API_KEY and ANTHROPIC_API_KEY
   const apiKey = process.env.AGENT_API_KEY || process.env.ANTHROPIC_API_KEY;
-  const baseUrl = process.env.AGENT_BASE_URL;
+  const baseUrl = process.env.AGENT_BASE_URL || process.env.ANTHROPIC_BASE_URL;
 
   if (!apiKey) {
     console.error("Error: API key is not set");
@@ -86,6 +86,15 @@ async function startDevServer() {
     console.log("  2. export AGENT_API_KEY='your-api-key'");
     console.log("  3. export ANTHROPIC_API_KEY='your-api-key'");
     process.exit(1);
+  }
+
+  // Sync environment variables for NodeRuntime
+  // NodeRuntime reads ANTHROPIC_API_KEY and ANTHROPIC_BASE_URL
+  if (!process.env.ANTHROPIC_API_KEY && apiKey) {
+    process.env.ANTHROPIC_API_KEY = apiKey;
+  }
+  if (!process.env.ANTHROPIC_BASE_URL && baseUrl) {
+    process.env.ANTHROPIC_BASE_URL = baseUrl;
   }
 
   // Ensure logs directory exists
