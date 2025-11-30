@@ -67,6 +67,12 @@ See [Claude Agent SDK documentation](https://github.com/anthropics/claude-agent-
 
 Keeping it separate ensures `@deepractice-ai/agentx` stays platform-agnostic.
 
+## Related Packages
+
+- **[@deepractice-ai/agentx](../agentx)** - Platform API (uses this driver)
+- **[@deepractice-ai/agentx-adk](../agentx-adk)** - ADK for building drivers
+- **[@deepractice-ai/agentx-types](../agentx-types)** - Event type definitions
+
 ## License
 
 MIT

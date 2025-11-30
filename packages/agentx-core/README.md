@@ -215,9 +215,10 @@ createAgent()
 
 ## Related Packages
 
-- **[@deepractice-ai/agentx-framework](../agentx-framework)** - defineAgent, ConfigSchema
+- **[@deepractice-ai/agentx](../agentx)** - Platform API (Local/Remote modes)
+- **[@deepractice-ai/agentx-adk](../agentx-adk)** - Agent Development Kit (defineAgent, defineDriver)
 - **[@deepractice-ai/agentx-engine](../agentx-engine)** - Stateless event processing engine
-- **[@deepractice-ai/agentx-event](../agentx-event)** - Event type definitions
+- **[@deepractice-ai/agentx-types](../agentx-types)** - Type definitions
 
 ## License
 

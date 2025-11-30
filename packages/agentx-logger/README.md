@@ -285,10 +285,12 @@ class MyDriver implements AgentDriver {
 }
 ```
 
+## Related Packages
+
+- **[@deepractice-ai/agentx-types](../agentx-types)** - Logger interface definitions
+- **[@deepractice-ai/agentx-core](../agentx-core)** - Uses logger for agent lifecycle logging
+- **[@deepractice-ai/agentx-engine](../agentx-engine)** - Uses logger for event processing
+
 ## License
 
 MIT
-
-## Contributing
-
-Contributions welcome! Please see [CONTRIBUTING.md](../../CONTRIBUTING.md).

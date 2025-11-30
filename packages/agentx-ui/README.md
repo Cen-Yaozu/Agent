@@ -67,6 +67,12 @@ The component library uses a semantic token system based on Tailwind CSS:
 
 Dark mode is supported via CSS custom properties.
 
+## Related Packages
+
+- **[@deepractice-ai/agentx](../agentx)** - Platform API (agents bound via hooks)
+- **[@deepractice-ai/agentx-types](../agentx-types)** - Message and event type definitions
+- **[@deepractice-ai/agentx-core](../agentx-core)** - Agent runtime (useAgent binds to)
+
 ## License
 
 MIT

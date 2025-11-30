@@ -189,6 +189,12 @@ const markdown = config.toMarkdown();
 const jsonSchema = config.toJSONSchema();
 ```
 
+## Related Packages
+
+- **[@deepractice-ai/agentx](../agentx)** - Platform API (uses definitions from ADK)
+- **[@deepractice-ai/agentx-types](../agentx-types)** - Type definitions for ADK
+- **[@deepractice-ai/agentx-claude](../agentx-claude)** - Claude driver (built with ADK)
+
 ## License
 
-MIT © Deepractice AI
+MIT

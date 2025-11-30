@@ -265,9 +265,9 @@ Engine is stateless, enabling horizontal scaling:
 
 ## Related Packages
 
-- **[@deepractice-ai/agentx-mealy](../agentx-mealy)** - Mealy Machine framework
-- **[@deepractice-ai/agentx-event](../agentx-event)** - Event type definitions
-- **[@deepractice-ai/agentx-types](../agentx-types)** - Message type definitions
+- **[@deepractice-ai/agentx-core](../agentx-core)** - Agent runtime (uses this engine)
+- **[@deepractice-ai/agentx-types](../agentx-types)** - Event and message type definitions
+- **[@deepractice-ai/agentx-logger](../agentx-logger)** - Logging facade
 
 ## License
 
