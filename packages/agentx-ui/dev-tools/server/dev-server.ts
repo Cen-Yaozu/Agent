@@ -109,12 +109,13 @@ async function startDevServer() {
   const { createAgentX } = await import("@deepractice-ai/agentx");
   const { createAgentXHandler } = await import("@deepractice-ai/agentx/server");
   const { LoggerFactoryKey } = await import("@deepractice-ai/agentx-types");
+  const { runtime } = await import("@deepractice-ai/agentx-node");
 
   // Import agent definition
-  const { ClaudeAgent, defaultAgentConfig } = await import("./agent.js");
+  const { ClaudeAgent } = await import("./agent.js");
 
-  // Create AgentX instance
-  const agentx = createAgentX();
+  // Create AgentX instance with NodeRuntime
+  const agentx = createAgentX(runtime);
 
   // Provide custom LoggerFactory
   agentx.provide(LoggerFactoryKey, {
@@ -129,11 +130,8 @@ async function startDevServer() {
   });
 
   // Register definition for dynamic creation
-  (handler as any).registerDefinition("ClaudeAgent", ClaudeAgent, {
-    apiKey,
-    baseUrl,
-    ...defaultAgentConfig,
-  });
+  // Note: apiKey and baseUrl are now collected from environment by NodeRuntime
+  (handler as any).registerDefinition("ClaudeAgent", ClaudeAgent);
 
   // Create HTTP server
   const PORT = 5200;
