@@ -6,11 +6,10 @@
  * - HTTP API contracts (agentx remote)
  *
  * Part of Docker-style layered architecture:
- * Definition → build → Image → run → Agent
- *                        ↓
- *                    Session (external wrapper)
+ * AgentFile/Code → register → Definition → MetaImage → Session → Agent
  */
 
+export type { DefinitionRecord } from "./DefinitionRecord";
 export type { ImageRecord, ImageType } from "./ImageRecord";
 export type { SessionRecord } from "./SessionRecord";
 export type { MessageRecord } from "./MessageRecord";

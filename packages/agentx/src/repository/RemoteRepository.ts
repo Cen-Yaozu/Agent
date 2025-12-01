@@ -11,6 +11,7 @@
 
 import type {
   Repository,
+  DefinitionRecord,
   ImageRecord,
   SessionRecord,
   MessageRecord,
@@ -30,6 +31,40 @@ export class RemoteRepository implements Repository {
   constructor(options: RemoteRepositoryOptions) {
     this.client = createHttpClient({ baseUrl: options.serverUrl });
     logger.debug("RemoteRepository created", { serverUrl: options.serverUrl });
+  }
+
+  // ==================== Definition ====================
+
+  async saveDefinition(record: DefinitionRecord): Promise<void> {
+    await this.client.put(`definitions/${record.name}`, { json: record });
+  }
+
+  async findDefinitionByName(name: string): Promise<DefinitionRecord | null> {
+    try {
+      const result = await this.client.get(`definitions/${name}`).json<DefinitionRecord>();
+      return this.parseDefinitionRecord(result);
+    } catch (error: unknown) {
+      if (this.isNotFound(error)) return null;
+      throw error;
+    }
+  }
+
+  async findAllDefinitions(): Promise<DefinitionRecord[]> {
+    const result = await this.client.get("definitions").json<DefinitionRecord[]>();
+    return result.map((r) => this.parseDefinitionRecord(r));
+  }
+
+  async deleteDefinition(name: string): Promise<void> {
+    await this.client.delete(`definitions/${name}`);
+  }
+
+  async definitionExists(name: string): Promise<boolean> {
+    try {
+      await this.client.head(`definitions/${name}`);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // ==================== Image ====================
@@ -154,6 +189,14 @@ export class RemoteRepository implements Repository {
 
   private isNotFound(error: unknown): boolean {
     return (error as { response?: { status: number } })?.response?.status === 404;
+  }
+
+  private parseDefinitionRecord(raw: DefinitionRecord): DefinitionRecord {
+    return {
+      ...raw,
+      createdAt: new Date(raw.createdAt),
+      updatedAt: new Date(raw.updatedAt),
+    };
   }
 
   private parseImageRecord(raw: ImageRecord): ImageRecord {

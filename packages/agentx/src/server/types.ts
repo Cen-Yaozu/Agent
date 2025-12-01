@@ -184,6 +184,11 @@ export interface ParsedRequest {
   agentId?: string;
 
   /**
+   * Definition name (if applicable)
+   */
+  definitionName?: string;
+
+  /**
    * Image ID (if applicable)
    */
   imageId?: string;
@@ -224,6 +229,12 @@ export type RequestType =
   | "connect_sse" // GET /agents/:agentId/sse
   | "send_message" // POST /agents/:agentId/messages
   | "interrupt" // POST /agents/:agentId/interrupt
+  // Definitions
+  | "list_definitions" // GET /definitions
+  | "get_definition" // GET /definitions/:name
+  | "save_definition" // PUT /definitions/:name
+  | "delete_definition" // DELETE /definitions/:name
+  | "head_definition" // HEAD /definitions/:name
   // Images
   | "list_images" // GET /images
   | "get_image" // GET /images/:imageId

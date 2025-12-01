@@ -19,6 +19,7 @@
 import Database from "better-sqlite3";
 import type {
   Repository,
+  DefinitionRecord,
   ImageRecord,
   SessionRecord,
   MessageRecord,
@@ -44,6 +45,9 @@ function toISOString(value: Date | string | number): string {
 
 export class SQLiteRepository implements Repository {
   private db: Database.Database;
+
+  // Definition storage (in-memory, code-defined)
+  private definitions = new Map<string, DefinitionRecord>();
 
   constructor(dbPath: string = ":memory:") {
     this.db = new Database(dbPath);
@@ -92,6 +96,28 @@ export class SQLiteRepository implements Repository {
 
     // Enable foreign keys
     this.db.pragma("foreign_keys = ON");
+  }
+
+  // ==================== Definition (in-memory) ====================
+
+  async saveDefinition(record: DefinitionRecord): Promise<void> {
+    this.definitions.set(record.name, record);
+  }
+
+  async findDefinitionByName(name: string): Promise<DefinitionRecord | null> {
+    return this.definitions.get(name) ?? null;
+  }
+
+  async findAllDefinitions(): Promise<DefinitionRecord[]> {
+    return Array.from(this.definitions.values());
+  }
+
+  async deleteDefinition(name: string): Promise<void> {
+    this.definitions.delete(name);
+  }
+
+  async definitionExists(name: string): Promise<boolean> {
+    return this.definitions.has(name);
   }
 
   // ==================== Image ====================

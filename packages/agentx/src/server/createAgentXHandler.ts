@@ -23,6 +23,7 @@ import type {
   AgentX,
   Agent,
   UserMessage,
+  DefinitionRecord,
   ImageRecord,
   SessionRecord,
   MessageRecord,
@@ -141,6 +142,29 @@ export function createAgentXHandler(
 
       if (method === "POST" && subPath === "/interrupt") {
         return { type: "interrupt", agentId };
+      }
+    }
+
+    // Definitions routes: /definitions, /definitions/:name
+    if (method === "GET" && path === "/definitions") {
+      return { type: "list_definitions" };
+    }
+
+    const definitionMatch = path.match(/^\/definitions\/([^/]+)$/);
+    if (definitionMatch) {
+      const definitionName = definitionMatch[1];
+
+      if (method === "GET") {
+        return { type: "get_definition", definitionName };
+      }
+      if (method === "PUT") {
+        return { type: "save_definition", definitionName };
+      }
+      if (method === "DELETE") {
+        return { type: "delete_definition", definitionName };
+      }
+      if (method === "HEAD") {
+        return { type: "head_definition", definitionName };
       }
     }
 
@@ -499,6 +523,47 @@ export function createAgentXHandler(
     return repository;
   }
 
+  // ----- Definitions -----
+
+  async function handleListDefinitions(): Promise<Response> {
+    const repo = getRepository();
+    const definitions = await repo.findAllDefinitions();
+    return jsonResponse(definitions);
+  }
+
+  async function handleGetDefinition(name: string): Promise<Response> {
+    const repo = getRepository();
+    const definition = await repo.findDefinitionByName(name);
+    if (!definition) {
+      return errorResponse("INVALID_REQUEST", `Definition ${name} not found`, 404);
+    }
+    return jsonResponse(definition);
+  }
+
+  async function handleSaveDefinition(name: string, request: Request): Promise<Response> {
+    const repo = getRepository();
+    let body: DefinitionRecord;
+    try {
+      body = (await request.json()) as DefinitionRecord;
+    } catch {
+      return errorResponse("INVALID_REQUEST", "Invalid JSON body", 400);
+    }
+    await repo.saveDefinition({ ...body, name });
+    return new Response(null, { status: 204 });
+  }
+
+  async function handleDeleteDefinition(name: string): Promise<Response> {
+    const repo = getRepository();
+    await repo.deleteDefinition(name);
+    return new Response(null, { status: 204 });
+  }
+
+  async function handleHeadDefinition(name: string): Promise<Response> {
+    const repo = getRepository();
+    const exists = await repo.definitionExists(name);
+    return new Response(null, { status: exists ? 200 : 404 });
+  }
+
   // ----- Images -----
 
   async function handleListImages(): Promise<Response> {
@@ -678,6 +743,18 @@ export function createAgentXHandler(
           return handleSendMessage(parsed.agentId!, request);
         case "interrupt":
           return handleInterrupt(parsed.agentId!);
+
+        // Definitions
+        case "list_definitions":
+          return handleListDefinitions();
+        case "get_definition":
+          return handleGetDefinition(parsed.definitionName!);
+        case "save_definition":
+          return handleSaveDefinition(parsed.definitionName!, request);
+        case "delete_definition":
+          return handleDeleteDefinition(parsed.definitionName!);
+        case "head_definition":
+          return handleHeadDefinition(parsed.definitionName!);
 
         // Images
         case "list_images":

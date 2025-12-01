@@ -1,11 +1,13 @@
 /**
- * DefinitionManagerImpl - In-memory implementation of DefinitionManager
+ * DefinitionManagerImpl - Repository-based implementation of DefinitionManager
  *
  * Part of Docker-style layered architecture:
- * Definition → [auto] → MetaImage → Session → Agent
+ * AgentFile/Code → register → Definition → MetaImage → Session → Agent
  *
- * This implementation stores definitions in memory.
- * When a definition is registered, it auto-creates a MetaImage.
+ * This implementation:
+ * - Stores definitions via Repository (in-memory by default)
+ * - Auto-creates MetaImage when definition is registered
+ * - Maintains local cache for sync access (register/get/list are sync)
  */
 
 import type {
@@ -13,6 +15,7 @@ import type {
   AgentDefinition,
   Repository,
   ImageRecord,
+  DefinitionRecord,
 } from "@deepractice-ai/agentx-types";
 import { createLogger } from "@deepractice-ai/agentx-logger";
 
@@ -26,20 +29,43 @@ function generateMetaImageId(definitionName: string): string {
 }
 
 /**
- * In-memory DefinitionManager implementation
+ * Convert AgentDefinition to DefinitionRecord
+ */
+function toDefinitionRecord(definition: AgentDefinition): DefinitionRecord {
+  const now = new Date();
+  return {
+    name: definition.name,
+    description: definition.description,
+    systemPrompt: definition.systemPrompt,
+    definition: definition as unknown as Record<string, unknown>,
+    source: "code",
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * DefinitionManager implementation using Repository
  */
 export class DefinitionManagerImpl implements DefinitionManager {
-  private definitions = new Map<string, AgentDefinition>();
+  // Local cache for sync access
+  private cache = new Map<string, AgentDefinition>();
 
   constructor(private readonly repository: Repository) {}
 
   register(definition: AgentDefinition): void {
-    if (this.definitions.has(definition.name)) {
+    if (this.cache.has(definition.name)) {
       throw new Error(`Definition already exists: ${definition.name}`);
     }
 
-    // Store definition in memory
-    this.definitions.set(definition.name, definition);
+    // Store in local cache (sync)
+    this.cache.set(definition.name, definition);
+
+    // Store in repository (async, fire-and-forget)
+    const definitionRecord = toDefinitionRecord(definition);
+    this.repository.saveDefinition(definitionRecord).catch((err) => {
+      logger.error("Failed to save definition", { name: definition.name, error: err });
+    });
 
     // Auto-create MetaImage
     const metaImageId = generateMetaImageId(definition.name);
@@ -54,7 +80,7 @@ export class DefinitionManagerImpl implements DefinitionManager {
       createdAt: new Date(),
     };
 
-    // Save MetaImage to repository (fire-and-forget for sync API)
+    // Save MetaImage to repository (async, fire-and-forget)
     this.repository.saveImage(imageRecord).catch((err) => {
       logger.error("Failed to save MetaImage", { definitionName: definition.name, error: err });
     });
@@ -66,25 +92,30 @@ export class DefinitionManagerImpl implements DefinitionManager {
   }
 
   get(name: string): AgentDefinition | undefined {
-    return this.definitions.get(name);
+    return this.cache.get(name);
   }
 
   list(): AgentDefinition[] {
-    return Array.from(this.definitions.values());
+    return Array.from(this.cache.values());
   }
 
   has(name: string): boolean {
-    return this.definitions.has(name);
+    return this.cache.has(name);
   }
 
   unregister(name: string): boolean {
-    const definition = this.definitions.get(name);
+    const definition = this.cache.get(name);
     if (!definition) {
       return false;
     }
 
-    // Remove definition
-    this.definitions.delete(name);
+    // Remove from local cache
+    this.cache.delete(name);
+
+    // Remove from repository (async, fire-and-forget)
+    this.repository.deleteDefinition(name).catch((err) => {
+      logger.error("Failed to delete definition", { name, error: err });
+    });
 
     // Remove associated MetaImage
     const metaImageId = generateMetaImageId(name);

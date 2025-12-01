@@ -22,6 +22,7 @@
  * ```
  */
 
+import type { DefinitionRecord } from "./record/DefinitionRecord";
 import type { ImageRecord } from "./record/ImageRecord";
 import type { SessionRecord } from "./record/SessionRecord";
 import type { MessageRecord } from "./record/MessageRecord";
@@ -30,6 +31,33 @@ import type { MessageRecord } from "./record/MessageRecord";
  * Repository - Unified persistence interface
  */
 export interface Repository {
+  // ==================== Definition ====================
+
+  /**
+   * Save a definition record (create or update)
+   */
+  saveDefinition(record: DefinitionRecord): Promise<void>;
+
+  /**
+   * Find definition by name
+   */
+  findDefinitionByName(name: string): Promise<DefinitionRecord | null>;
+
+  /**
+   * Find all definitions
+   */
+  findAllDefinitions(): Promise<DefinitionRecord[]>;
+
+  /**
+   * Delete definition by name
+   */
+  deleteDefinition(name: string): Promise<void>;
+
+  /**
+   * Check if definition exists
+   */
+  definitionExists(name: string): Promise<boolean>;
+
   // ==================== Image ====================
 
   /**
