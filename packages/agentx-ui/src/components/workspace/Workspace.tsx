@@ -116,32 +116,31 @@ export function Workspace({
   // ===== Agent Instance Management =====
   const [agent, setAgent] = useState<Agent | null>(null);
 
-  // Create agent when session is selected
+  // Resume agent when session is selected
+  // Docker-style: session.resume() creates agent from image
   useEffect(() => {
-    if (!currentSession || !currentDefinition) {
+    if (!currentSession) {
       setAgent(null);
       return;
     }
 
-    // Create agent for this session
-    // In real implementation, this would use agentx.agents.create()
-    const createAgentForSession = async () => {
+    // Resume agent from session
+    const resumeAgentFromSession = async () => {
       try {
-        // The actual agent creation depends on agentx API
-        // AgentDefinitionItem extends AgentDefinition, so we can pass it directly
-        if ("agents" in agentx && agentx.agents) {
-          // Create agent using the definition (which includes name, description, etc.)
-          const newAgent = await agentx.agents.create(currentDefinition, {
-            // Additional configuration can be added here
-          });
-          setAgent(newAgent);
+        // Get the actual Session object and call resume()
+        if ("sessions" in agentx && agentx.sessions) {
+          const session = await agentx.sessions.get(currentSession.sessionId);
+          if (session) {
+            const newAgent = await session.resume();
+            setAgent(newAgent);
+          }
         }
       } catch (error) {
-        console.error("Failed to create agent:", error);
+        console.error("Failed to resume agent from session:", error);
       }
     };
 
-    createAgentForSession();
+    resumeAgentFromSession();
 
     // Cleanup agent on unmount or session change
     return () => {
@@ -149,7 +148,7 @@ export function Workspace({
         agent.destroy?.().catch(console.error);
       }
     };
-  }, [currentSession?.sessionId, currentDefinition?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentSession?.sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ===== Agent State (maps to agentx.agents) =====
   const {

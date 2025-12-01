@@ -14,7 +14,13 @@
  * ```
  */
 
-import type { AgentX, ProviderKey, LoggerFactory, Runtime } from "@deepractice-ai/agentx-types";
+import type {
+  AgentX,
+  ProviderKey,
+  LoggerFactory,
+  Runtime,
+  AgentDefinition,
+} from "@deepractice-ai/agentx-types";
 import { LoggerFactoryKey } from "@deepractice-ai/agentx-types";
 import { AgentEngine } from "@deepractice-ai/agentx-engine";
 import { createLogger, setLoggerFactory } from "@deepractice-ai/agentx-logger";
@@ -77,13 +83,18 @@ export function createAgentX(runtime: Runtime): AgentX {
   // Create managers
   const errorManager = new ErrorManager();
   const definitionManager = new DefinitionManagerImpl(runtime.repository);
-  const imageManager = new ImageManagerImpl(runtime.repository);
   const agentManager = new AgentManager(runtime, engine, errorManager);
 
-  // Create session manager with repository and agent factory
-  const sessionManager = new SessionManagerImpl(runtime.repository, (definition, config) =>
-    agentManager.create(definition, config)
-  );
+  // Agent factory - creates agents from definition and config
+  // Used by ImageManager.run() and Session.resume()
+  const agentFactory = (definition: AgentDefinition, config: Record<string, unknown>) =>
+    agentManager.create(definition, config);
+
+  // Create image manager with repository and agent factory (for images.run())
+  const imageManager = new ImageManagerImpl(runtime.repository, agentFactory);
+
+  // Create session manager with repository and agent factory (for session.resume())
+  const sessionManager = new SessionManagerImpl(runtime.repository, agentFactory);
 
   // Create provider registry
   const registry = new ProviderRegistry();

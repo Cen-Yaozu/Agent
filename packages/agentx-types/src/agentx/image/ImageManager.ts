@@ -8,20 +8,26 @@
  * - Access to MetaImages (auto-created from Definitions)
  * - Access to DerivedImages (created from session.commit())
  * - Image lifecycle management
+ * - Running agents from images (like `docker run`)
  *
  * @example
  * ```typescript
  * // Get MetaImage for a definition
  * const metaImage = agentx.images.getMetaImage("Translator");
  *
- * // Create session from image
+ * // Run agent directly from image (like docker run)
+ * const agent = await agentx.images.run(metaImage.imageId);
+ *
+ * // Or create session first (for user context)
  * const session = await agentx.sessions.create(metaImage.imageId, userId);
+ * const agent = await session.resume();
  *
  * // List all images
  * const images = await agentx.images.list();
  * ```
  */
 
+import type { Agent } from "~/agent/Agent";
 import type { AgentImage, MetaImage } from "~/image";
 
 /**
@@ -87,4 +93,28 @@ export interface ImageManager {
    * @returns true if deleted, false if not found or is MetaImage
    */
   delete(imageId: string): Promise<boolean>;
+
+  /**
+   * Run an agent from an image
+   *
+   * Like `docker run <image>`, creates and starts an agent from the image.
+   * The agent will have the definition, config, and messages from the image.
+   *
+   * For user-specific sessions, use session.resume() instead.
+   *
+   * @param imageId - Image identifier
+   * @returns Running agent instance
+   * @throws Error if image not found
+   *
+   * @example
+   * ```typescript
+   * // Run from MetaImage (fresh start)
+   * const metaImage = await agentx.images.getMetaImage("Translator");
+   * const agent = await agentx.images.run(metaImage.imageId);
+   *
+   * // Run from DerivedImage (with history)
+   * const agent = await agentx.images.run(derivedImageId);
+   * ```
+   */
+  run(imageId: string): Promise<Agent>;
 }

@@ -1,14 +1,13 @@
 /**
- * AgentManager - Agent lifecycle management
+ * AgentManager - Running agent query and management
  *
- * "Define Once, Run Anywhere"
+ * Docker-style design: Agent creation happens via Image.run() or Session.resume(),
+ * NOT via public AgentManager.create(). AgentManager queries and manages running agents.
  *
- * Manages the creation, retrieval, and destruction of agents.
+ * The create() method is INTERNAL - used by ImageManager.run() and Session.resume()
+ * via the agentFactory pattern. It is NOT exposed in the public AgentManager interface.
+ *
  * Uses Runtime for infrastructure (container, sandbox, driver).
- *
- * - AgentDefinition: Business config (systemPrompt, etc.)
- * - AgentConfig: Instance overrides (currently empty)
- * - RuntimeConfig: Infrastructure (collected by Runtime from env)
  */
 
 import type {
@@ -50,10 +49,14 @@ export class AgentManager implements IAgentManager {
   ) {}
 
   /**
-   * Create a new agent instance
+   * Create a new agent instance (INTERNAL - not in public interface)
+   *
+   * This method is used internally by ImageManager.run() and Session.resume()
+   * via the agentFactory pattern. Do NOT call directly from application code.
    *
    * @param definition - Agent definition (business config)
    * @param _config - Agent config (instance overrides, currently unused)
+   * @internal
    */
   create(definition: AgentDefinition, _config?: AgentConfig): Agent {
     logger.debug("Creating agent", { definitionName: definition.name });

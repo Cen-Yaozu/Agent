@@ -370,13 +370,18 @@ export function createAgentXHandler(
       );
     }
 
-    // Merge config
-    const config = { ...registered.defaultConfig, ...body.config };
+    // Get MetaImage for the definition
+    const metaImage = await agentx.images.getMetaImage(body.definition);
+    if (!metaImage) {
+      return errorResponse(
+        "IMAGE_NOT_FOUND",
+        `MetaImage for definition '${body.definition}' not found`,
+        404
+      );
+    }
 
-    // Create agent
-    // Note: This assumes the definition is compatible with agents.create
-    // In a real implementation, we'd need proper type handling
-    const agent = agentx.agents.create(registered.definition as any, config);
+    // Create agent from image (Docker-style: docker run <image>)
+    const agent = await agentx.images.run(metaImage.imageId);
 
     const response: CreateAgentResponse = {
       agentId: agent.agentId,

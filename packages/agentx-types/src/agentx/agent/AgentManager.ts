@@ -1,49 +1,42 @@
 /**
- * AgentManager - Agent lifecycle management (Runtime API)
+ * AgentManager - Running agent query and management (Runtime API)
  *
- * "Define Once, Run Anywhere"
+ * Docker-style design: Agent creation happens via Image.run() or Session.resume(),
+ * NOT via AgentManager.create(). AgentManager only queries and manages running agents.
  *
- * TypeScript API for runtime agent operations (agentx.agents.*)
+ * ```
+ * Docker analogy:
+ * - docker ps         → agentx.agents.list()
+ * - docker inspect    → agentx.agents.get(id)
+ * - docker rm         → agentx.agents.destroy(id)
+ * - docker run <image> → agentx.images.run(imageId) or session.resume()
+ * ```
  *
  * @example
  * ```typescript
- * import { defineAgent } from "@deepractice-ai/agentx";
- * import { createAgentX } from "@deepractice-ai/agentx";
- * import { runtime } from "@deepractice-ai/agentx-node";
+ * // Agent creation via Image or Session (NOT via agents.create!)
+ * const agent = await agentx.images.run(imageId);
+ * // or
+ * const session = await agentx.sessions.create(imageId, userId);
+ * const agent = await session.resume();
  *
- * // Define agent (development time)
- * const MyAgent = defineAgent({
- *   name: "Translator",
- *   systemPrompt: "You are a translator",
- * });
- *
- * // Create instance (runtime)
- * const agentx = createAgentX(runtime);
- * const agent = agentx.agents.create(MyAgent);  // No config needed!
- *
- * // Get / List / Destroy
- * agentx.agents.get(agentId);
- * agentx.agents.list();
- * await agentx.agents.destroy(agentId);
+ * // Query and manage running agents
+ * agentx.agents.list();           // List all running agents
+ * agentx.agents.get(agentId);     // Get specific agent
+ * await agentx.agents.destroy(agentId);  // Destroy agent
  * ```
  */
 
 import type { Agent } from "~/agent/Agent";
-import type { AgentDefinition } from "~/agent/AgentDefinition";
-import type { AgentConfig } from "~/agent/AgentConfig";
 
 /**
- * Agent lifecycle management interface (Runtime only)
+ * Agent query and management interface (Runtime only)
+ *
+ * Note: No create() method. Agent creation happens via:
+ * - agentx.images.run(imageId) - Run agent from image
+ * - session.resume() - Resume agent from session
  */
 export interface AgentManager {
-  /**
-   * Create a new agent instance from definition
-   *
-   * @param definition - Agent definition (business config)
-   * @param config - Agent config (instance overrides, currently unused)
-   */
-  create(definition: AgentDefinition, config?: AgentConfig): Agent;
-
   /**
    * Get an existing agent by ID
    */
@@ -55,7 +48,7 @@ export interface AgentManager {
   has(agentId: string): boolean;
 
   /**
-   * List all agents
+   * List all running agents
    */
   list(): Agent[];
 

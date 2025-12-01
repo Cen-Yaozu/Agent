@@ -290,8 +290,13 @@ function LiveWorkspaceComponent() {
         });
         const agentx = createAgentX(runtime);
 
-        // Create browser-side agent
-        createdAgent = agentx.agents.create(definitions[0]);
+        // Get MetaImage for the definition and run agent from it
+        // Docker-style: images.run() instead of agents.create()
+        const metaImage = await agentx.images.getMetaImage(definitions[0].name);
+        if (!metaImage) {
+          throw new Error(`MetaImage not found for definition: ${definitions[0].name}`);
+        }
+        createdAgent = await agentx.images.run(metaImage.imageId);
 
         if (!mounted) {
           createdAgent.destroy?.();
