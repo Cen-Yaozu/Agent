@@ -549,16 +549,8 @@ export class AgentInstance implements Agent {
     this.middlewareChain.clear();
     this.interceptorChain.clear();
 
-    // Destroy driver and cleanup its resources
-    try {
-      await this.driver.destroy();
-    } catch (error) {
-      logger.error("Driver destroy error", {
-        agentId: this.agentId,
-        driverName: this.driver.name,
-        error,
-      });
-    }
+    // Driver cleanup is handled internally by Agent
+    // No need to call driver.destroy() - it's not part of the public interface
 
     // Clear engine state for this agent
     this.engine.clearState(this.agentId);

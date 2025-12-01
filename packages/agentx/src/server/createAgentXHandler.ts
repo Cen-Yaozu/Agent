@@ -196,6 +196,9 @@ export function createAgentXHandler(
       if (method === "DELETE" && subPath === "/sessions") {
         return { type: "delete_image_sessions", imageId };
       }
+      if (method === "POST" && subPath === "/run") {
+        return { type: "run_image", imageId };
+      }
     }
 
     // Sessions routes: /sessions, /sessions/:sessionId, /sessions/:sessionId/messages
@@ -228,6 +231,9 @@ export function createAgentXHandler(
       }
       if (method === "GET" && subPath === "/messages/count") {
         return { type: "count_session_messages", sessionId };
+      }
+      if (method === "POST" && subPath === "/resume") {
+        return { type: "resume_session", sessionId };
       }
     }
 
@@ -622,6 +628,30 @@ export function createAgentXHandler(
     return new Response(null, { status: 204 });
   }
 
+  /**
+   * Run agent from image (Docker-style: docker run <image>)
+   * POST /images/:imageId/run
+   */
+  async function handleRunImage(imageId: string): Promise<Response> {
+    // Run agent from image via Container
+    const agent = await agentx.images.run(imageId);
+
+    const response: CreateAgentResponse = {
+      agentId: agent.agentId,
+      name: agent.definition.name,
+      lifecycle: agent.lifecycle,
+      state: agent.state,
+      createdAt: agent.createdAt,
+      endpoints: {
+        sse: `${basePath}/agents/${agent.agentId}/sse`,
+        messages: `${basePath}/agents/${agent.agentId}/messages`,
+        interrupt: `${basePath}/agents/${agent.agentId}/interrupt`,
+      },
+    };
+
+    return jsonResponse(response, 201);
+  }
+
   // ----- Sessions -----
 
   async function handleListSessions(): Promise<Response> {
@@ -679,6 +709,36 @@ export function createAgentXHandler(
     const repo = getRepository();
     const count = await repo.countMessagesBySessionId(sessionId);
     return jsonResponse({ count });
+  }
+
+  /**
+   * Resume agent from session
+   * POST /sessions/:sessionId/resume
+   */
+  async function handleResumeSession(sessionId: string): Promise<Response> {
+    // Get session from repository
+    const session = await agentx.sessions.get(sessionId);
+    if (!session) {
+      return errorResponse("INVALID_REQUEST", `Session ${sessionId} not found`, 404);
+    }
+
+    // Resume agent via Container
+    const agent = await session.resume();
+
+    const response: CreateAgentResponse = {
+      agentId: agent.agentId,
+      name: agent.definition.name,
+      lifecycle: agent.lifecycle,
+      state: agent.state,
+      createdAt: agent.createdAt,
+      endpoints: {
+        sse: `${basePath}/agents/${agent.agentId}/sse`,
+        messages: `${basePath}/agents/${agent.agentId}/messages`,
+        interrupt: `${basePath}/agents/${agent.agentId}/interrupt`,
+      },
+    };
+
+    return jsonResponse(response, 201);
   }
 
   // ----- Users -----
@@ -776,6 +836,8 @@ export function createAgentXHandler(
           return handleListImageSessions(parsed.imageId!);
         case "delete_image_sessions":
           return handleDeleteImageSessions(parsed.imageId!);
+        case "run_image":
+          return handleRunImage(parsed.imageId!);
 
         // Sessions
         case "list_sessions":
@@ -794,6 +856,8 @@ export function createAgentXHandler(
           return handleDeleteSessionMessages(parsed.sessionId!);
         case "count_session_messages":
           return handleCountSessionMessages(parsed.sessionId!);
+        case "resume_session":
+          return handleResumeSession(parsed.sessionId!);
 
         // Users
         case "list_user_sessions":

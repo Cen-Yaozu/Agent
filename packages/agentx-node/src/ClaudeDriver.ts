@@ -75,6 +75,22 @@ function isAbortError(error: unknown): boolean {
 }
 
 /**
+ * Options for creating ClaudeDriver
+ */
+export interface ClaudeDriverOptions {
+  /**
+   * SDK session ID for resume (from previous conversation)
+   */
+  resumeSessionId?: string;
+
+  /**
+   * Callback when SDK session ID is captured
+   * Used by Container to track session ID for future resume
+   */
+  onSessionIdCaptured?: (sessionId: string) => void;
+}
+
+/**
  * Create a ClaudeDriver instance
  *
  * Factory function to create RuntimeDriver for Claude.
@@ -82,11 +98,13 @@ function isAbortError(error: unknown): boolean {
  * @param config - Driver configuration (from Runtime + AgentDefinition)
  * @param context - Agent context (identity)
  * @param sandbox - Sandbox for resource isolation
+ * @param options - Optional driver options (resume, callbacks)
  */
 export function createClaudeDriver(
   config: ClaudeDriverConfig,
   context: AgentContext,
-  sandbox: Sandbox
+  sandbox: Sandbox,
+  options?: ClaudeDriverOptions
 ): RuntimeDriver {
   // Extract agentId from context
   const agentId = context.agentId;
@@ -200,6 +218,8 @@ export function createClaudeDriver(
           responseStream,
           (capturedSessionId) => {
             sessionMap.set(agentId, capturedSessionId);
+            // Notify external listener (Container) about captured session ID
+            options?.onSessionIdCaptured?.(capturedSessionId);
           },
           {
             isInterrupted: () => wasInterrupted,
@@ -230,22 +250,6 @@ export function createClaudeDriver(
       } else {
         logger.debug("No active query to interrupt", { agentId });
       }
-    },
-
-    /**
-     * Destroy the driver and cleanup resources
-     */
-    async destroy(): Promise<void> {
-      // Abort any ongoing operation
-      if (currentAbortController) {
-        currentAbortController.abort();
-        currentAbortController = null;
-      }
-
-      promptSubject.complete();
-      responseSubject.complete();
-
-      logger.info("ClaudeDriver destroyed", { agentId });
     },
   };
 }

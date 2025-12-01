@@ -62,7 +62,7 @@ type Story = StoryObj;
 
 const SERVER_URL = "http://localhost:5200/agentx";
 
-// Agent definitions
+// Agent definitions - should match server registered definitions
 const definitions: AgentDefinitionItem[] = [
   {
     name: "ClaudeAgent",
@@ -71,39 +71,7 @@ const definitions: AgentDefinitionItem[] = [
     color: "bg-blue-500",
     isOnline: true,
   },
-  {
-    name: "GPT4",
-    description: "GPT-4 Assistant",
-    icon: "G",
-    color: "bg-green-500",
-    isOnline: false,
-  },
 ];
-
-/**
- * Connection status component
- */
-function ConnectionStatus({
-  isConnected,
-  agentId,
-}: {
-  isConnected: boolean;
-  agentId: string | null;
-}) {
-  return (
-    <div className="fixed bottom-4 right-4 flex items-center gap-2 bg-background border border-border rounded-full px-3 py-1 shadow-lg z-50">
-      <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`} />
-      <span className="text-xs text-muted-foreground">
-        {isConnected ? "Connected" : "Disconnected"}
-      </span>
-      {agentId && (
-        <span className="text-xs text-muted-foreground border-l border-border pl-2">
-          Agent: {agentId.slice(0, 8)}...
-        </span>
-      )}
-    </div>
-  );
-}
 
 /**
  * Error display component
@@ -216,7 +184,6 @@ function FullWorkspaceComponent() {
         onSessionChange={(session) => console.log("Session changed:", session?.sessionId)}
         onDefinitionChange={(def) => console.log("Definition changed:", def?.name)}
       />
-      <ConnectionStatus isConnected={isConnected} agentId={null} />
     </div>
   );
 }
@@ -270,28 +237,17 @@ function LiveWorkspaceComponent() {
         setIsConnected(true);
         setConnectionError(null);
 
-        // Create agent on server
-        const createResponse = await fetch(`${SERVER_URL}/agents`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ definition: "ClaudeAgent" }),
-        });
-
-        if (!createResponse.ok) {
-          throw new Error("Failed to create agent on server");
-        }
-
-        const { agentId } = await createResponse.json();
-
-        // Create SSERuntime connected to this agent
+        // Create SSERuntime - RemoteContainer will call POST /agents automatically
         const runtime = createSSERuntime({
           serverUrl: SERVER_URL,
-          agentId,
         });
         const agentx = createAgentX(runtime);
 
         // Get MetaImage for the definition and run agent from it
-        // Docker-style: images.run() instead of agents.create()
+        // Docker-style: images.run() which internally calls:
+        // 1. RemoteContainer.resolveAgentId() -> POST /agents -> get server agentId
+        // 2. Create local agent with server's agentId
+        // 3. SSEDriver connects to server agent using same agentId
         const metaImage = await agentx.images.getMetaImage(definitions[0].name);
         if (!metaImage) {
           throw new Error(`MetaImage not found for definition: ${definitions[0].name}`);
@@ -348,6 +304,7 @@ function LiveWorkspaceComponent() {
             <AgentPane
               definition={definitions[0]}
               session={session}
+              agentId={agent?.agentId}
               messages={messages}
               streaming={streaming}
               errors={errors}
@@ -360,8 +317,6 @@ function LiveWorkspaceComponent() {
           </Allotment.Pane>
         </Allotment>
       </MainContent>
-
-      <ConnectionStatus isConnected={isConnected} agentId={agent?.agentId ?? null} />
     </div>
   );
 }

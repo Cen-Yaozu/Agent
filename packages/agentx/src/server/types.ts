@@ -243,6 +243,7 @@ export type RequestType =
   | "head_image" // HEAD /images/:imageId
   | "list_image_sessions" // GET /images/:imageId/sessions
   | "delete_image_sessions" // DELETE /images/:imageId/sessions
+  | "run_image" // POST /images/:imageId/run
   // Sessions
   | "list_sessions" // GET /sessions
   | "get_session" // GET /sessions/:sessionId
@@ -252,6 +253,7 @@ export type RequestType =
   | "list_session_messages" // GET /sessions/:sessionId/messages
   | "delete_session_messages" // DELETE /sessions/:sessionId/messages
   | "count_session_messages" // GET /sessions/:sessionId/messages/count
+  | "resume_session" // POST /sessions/:sessionId/resume
   // Users
   | "list_user_sessions" // GET /users/:userId/sessions
   // Messages
@@ -337,6 +339,16 @@ export interface CreateAgentResponse {
     interrupt: string;
   };
 }
+
+/**
+ * Run image response (same as create agent response)
+ */
+export interface RunImageResponse extends CreateAgentResponse {}
+
+/**
+ * Resume session response (same as create agent response)
+ */
+export interface ResumeSessionResponse extends CreateAgentResponse {}
 
 /**
  * Send message request

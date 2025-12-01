@@ -18,10 +18,14 @@ import type {
   Repository,
   OS,
   LLMProvider,
+  Agent,
+  AgentImage,
+  Session,
 } from "@deepractice-ai/agentx-types";
-import type { Agent } from "@deepractice-ai/agentx-types";
+import { AgentInstance } from "@deepractice-ai/agentx-agent";
+import { AgentEngine } from "@deepractice-ai/agentx-engine";
 import { createLogger } from "@deepractice-ai/agentx-logger";
-import { createClaudeDriver } from "./ClaudeDriver";
+import { createClaudeDriver, type ClaudeDriverOptions } from "./ClaudeDriver";
 import { SQLiteRepository } from "./repository";
 import { homedir } from "node:os";
 import { mkdirSync, existsSync } from "node:fs";
@@ -30,19 +34,177 @@ import { join } from "node:path";
 const logger = createLogger("node/NodeRuntime");
 
 // ============================================================================
-// MemoryContainer - Simple in-memory container
+// NodeContainer - Node.js Container implementation
 // ============================================================================
 
-class MemoryContainer implements Container {
+/**
+ * NodeContainer - Server-side Container implementation
+ *
+ * Manages Agent lifecycle with Claude SDK integration.
+ * Persists driverState to Repository for resume capability.
+ */
+class NodeContainer implements Container {
   readonly id: string;
   private readonly agents = new Map<string, Agent>();
+  private readonly runtime: Runtime;
+  private readonly engine: AgentEngine;
+  private readonly repository: Repository;
 
-  constructor(id: string = "node-container") {
+  constructor(id: string, runtime: Runtime, engine: AgentEngine, repository: Repository) {
     this.id = id;
+    this.runtime = runtime;
+    this.engine = engine;
+    this.repository = repository;
   }
 
-  register(agent: Agent): void {
-    this.agents.set(agent.agentId, agent);
+  async run(image: AgentImage): Promise<Agent> {
+    logger.info("Running agent from image", { imageId: image.imageId });
+
+    // Generate agentId
+    const agentId = this.generateAgentId();
+
+    // Create context
+    const context: AgentContext = {
+      agentId,
+      createdAt: Date.now(),
+    };
+
+    // Create sandbox
+    const sandbox = this.runtime.createSandbox(`sandbox-${agentId}`);
+
+    // Create driver config
+    const driverConfig = {
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      baseUrl: process.env.ANTHROPIC_BASE_URL,
+      model: process.env.CLAUDE_MODEL || "claude-sonnet-4-20250514",
+      systemPrompt: image.definition.systemPrompt,
+    };
+
+    // Create driver with session ID capture callback
+    const driverOptions: ClaudeDriverOptions = {
+      onSessionIdCaptured: async (sdkSessionId) => {
+        // Persist driverState to Repository
+        await this.updateImageDriverState(image.imageId, { sdkSessionId });
+        logger.debug("Driver state persisted", {
+          imageId: image.imageId,
+          sdkSessionId,
+        });
+      },
+    };
+
+    const driver = createClaudeDriver(driverConfig, context, sandbox, driverOptions);
+
+    // Create agent
+    const agent = new AgentInstance(image.definition, context, this.engine, driver, sandbox);
+
+    // Register agent
+    this.agents.set(agentId, agent);
+
+    logger.info("Agent started from image", {
+      agentId,
+      imageId: image.imageId,
+      definitionName: image.definition.name,
+    });
+
+    return agent;
+  }
+
+  async resume(session: Session): Promise<Agent> {
+    logger.info("Resuming agent from session", {
+      sessionId: session.sessionId,
+      imageId: session.imageId,
+    });
+
+    // Get image from repository
+    const imageRecord = await this.repository.findImageById(session.imageId);
+    if (!imageRecord) {
+      throw new Error(`Image not found: ${session.imageId}`);
+    }
+
+    // Get sdkSessionId from persisted driverState
+    const sdkSessionId = imageRecord.driverState?.sdkSessionId as string | undefined;
+
+    // Generate agentId
+    const agentId = this.generateAgentId();
+
+    // Create context
+    const context: AgentContext = {
+      agentId,
+      createdAt: Date.now(),
+    };
+
+    // Create sandbox
+    const sandbox = this.runtime.createSandbox(`sandbox-${agentId}`);
+
+    // Create driver config
+    const definition = imageRecord.definition as unknown as AgentDefinition;
+    const driverConfig = {
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      baseUrl: process.env.ANTHROPIC_BASE_URL,
+      model: process.env.CLAUDE_MODEL || "claude-sonnet-4-20250514",
+      systemPrompt: definition.systemPrompt,
+    };
+
+    // Create driver with resume session ID and capture callback
+    const driverOptions: ClaudeDriverOptions = {
+      resumeSessionId: sdkSessionId,
+      onSessionIdCaptured: async (newSdkSessionId) => {
+        // Update driverState (may be new if resume created a fork)
+        await this.updateImageDriverState(session.imageId, { sdkSessionId: newSdkSessionId });
+        logger.debug("Driver state updated on resume", {
+          imageId: session.imageId,
+          sdkSessionId: newSdkSessionId,
+        });
+      },
+    };
+
+    const driver = createClaudeDriver(driverConfig, context, sandbox, driverOptions);
+
+    // Create agent
+    const agent = new AgentInstance(definition, context, this.engine, driver, sandbox);
+
+    // Register agent
+    this.agents.set(agentId, agent);
+
+    logger.info("Agent resumed from session", {
+      agentId,
+      sessionId: session.sessionId,
+      imageId: session.imageId,
+      hadDriverState: !!sdkSessionId,
+    });
+
+    return agent;
+  }
+
+  /**
+   * Update driverState for an image in Repository
+   */
+  private async updateImageDriverState(
+    imageId: string,
+    driverState: Record<string, unknown>
+  ): Promise<void> {
+    const imageRecord = await this.repository.findImageById(imageId);
+    if (imageRecord) {
+      // Merge with existing driverState
+      imageRecord.driverState = {
+        ...imageRecord.driverState,
+        ...driverState,
+      };
+      await this.repository.saveImage(imageRecord);
+    }
+  }
+
+  async destroy(agentId: string): Promise<void> {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      logger.warn("Agent not found for destroy", { agentId });
+      return;
+    }
+
+    logger.debug("Destroying agent", { agentId });
+    await agent.destroy();
+    this.agents.delete(agentId);
+    logger.info("Agent destroyed", { agentId });
   }
 
   get(agentId: string): Agent | undefined {
@@ -53,20 +215,19 @@ class MemoryContainer implements Container {
     return this.agents.has(agentId);
   }
 
-  unregister(agentId: string): boolean {
-    return this.agents.delete(agentId);
+  list(): Agent[] {
+    return Array.from(this.agents.values());
   }
 
-  getAllIds(): string[] {
-    return Array.from(this.agents.keys());
+  async destroyAll(): Promise<void> {
+    const agentIds = Array.from(this.agents.keys());
+    logger.debug("Destroying all agents", { count: agentIds.length });
+    await Promise.all(agentIds.map((id) => this.destroy(id)));
+    logger.info("All agents destroyed", { count: agentIds.length });
   }
 
-  count(): number {
-    return this.agents.size;
-  }
-
-  clear(): void {
-    this.agents.clear();
+  private generateAgentId(): string {
+    return `agent_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   }
 }
 
@@ -128,16 +289,21 @@ class NodeRuntime implements Runtime {
   readonly name = "node";
   readonly container: Container;
   readonly repository: Repository;
+  private readonly engine: AgentEngine;
 
   constructor(dataDir: string = DEFAULT_DATA_DIR) {
-    this.container = new MemoryContainer();
-
     // Ensure data directory exists
     ensureDir(dataDir);
 
     // Create SQLite repository
     const dbPath = join(dataDir, "agentx.db");
     this.repository = new SQLiteRepository(dbPath);
+
+    // Create shared engine
+    this.engine = new AgentEngine();
+
+    // Create container with runtime, engine, and repository
+    this.container = new NodeContainer("node-container", this, this.engine, this.repository);
 
     logger.info("NodeRuntime initialized", { dataDir, dbPath });
   }

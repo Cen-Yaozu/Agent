@@ -4,7 +4,7 @@
  * Part of Docker-style layered architecture:
  * Definition → [auto] → MetaImage → Session → [commit] → DerivedImage
  *
- * This implementation uses Repository for persistence and agentFactory for
+ * This implementation uses Repository for persistence and Container for
  * creating agents from images (like `docker run`).
  */
 
@@ -16,6 +16,7 @@ import type {
   ImageRecord,
   AgentDefinition,
   Agent,
+  Container,
 } from "@deepractice-ai/agentx-types";
 import { createLogger } from "@deepractice-ai/agentx-logger";
 
@@ -60,17 +61,12 @@ function toAgentImage(record: ImageRecord): AgentImage {
 }
 
 /**
- * Agent factory type for creating agents from definition and config
- */
-type AgentFactory = (definition: AgentDefinition, config: Record<string, unknown>) => Agent;
-
-/**
- * ImageManager implementation using Repository
+ * ImageManager implementation using Repository and Container
  */
 export class ImageManagerImpl implements ImageManager {
   constructor(
     private readonly repository: Repository,
-    private readonly agentFactory?: AgentFactory
+    private readonly container: Container
   ) {}
 
   async get(imageId: string): Promise<AgentImage | undefined> {
@@ -127,29 +123,13 @@ export class ImageManagerImpl implements ImageManager {
   async run(imageId: string): Promise<Agent> {
     logger.info("Running agent from image", { imageId });
 
-    if (!this.agentFactory) {
-      throw new Error("AgentFactory not configured. Cannot run agent from image.");
-    }
-
-    // Get image record from repository
-    const record = await this.repository.findImageById(imageId);
-    if (!record) {
+    // Get image
+    const image = await this.get(imageId);
+    if (!image) {
       throw new Error(`Image not found: ${imageId}`);
     }
 
-    // Create agent with stored definition and config
-    const definition = record.definition as unknown as AgentDefinition;
-    const config = record.config;
-
-    const agent = this.agentFactory(definition, config);
-
-    // TODO: Load messages from record.messages into agent context
-    logger.debug("Agent started from image", {
-      imageId,
-      definitionName: definition.name,
-      messageCount: record.messages.length,
-    });
-
-    return agent;
+    // Delegate to container
+    return this.container.run(image);
   }
 }

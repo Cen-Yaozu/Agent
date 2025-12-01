@@ -131,6 +131,11 @@ async function startDevServer() {
     getLogger: (name: string) => createFileLogger(name, logFilePath),
   });
 
+  // Register definition (auto-creates MetaImage)
+  // This is required for images.getMetaImage() and images.run() to work
+  agentx.definitions.register(ClaudeAgent);
+  console.log("Registered definition: ClaudeAgent");
+
   // Create handler with dynamic agent creation enabled
   const handler = createAgentXHandler(agentx, {
     basePath: "/agentx",
@@ -139,8 +144,7 @@ async function startDevServer() {
     repository: runtime.repository,
   });
 
-  // Register definition for dynamic creation
-  // Note: apiKey and baseUrl are now collected from environment by NodeRuntime
+  // Also register with handler for backward compatibility
   (handler as any).registerDefinition("ClaudeAgent", ClaudeAgent);
 
   // Create HTTP server

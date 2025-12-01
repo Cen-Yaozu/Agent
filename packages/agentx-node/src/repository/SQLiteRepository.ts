@@ -64,7 +64,8 @@ export class SQLiteRepository implements Repository {
         definition TEXT NOT NULL,
         config TEXT NOT NULL,
         messages TEXT NOT NULL,
-        createdAt TEXT NOT NULL
+        createdAt TEXT NOT NULL,
+        driverState TEXT
       );
 
       CREATE INDEX IF NOT EXISTS idx_images_definitionName ON images(definitionName);
@@ -124,15 +125,16 @@ export class SQLiteRepository implements Repository {
 
   async saveImage(record: ImageRecord): Promise<void> {
     const stmt = this.db.prepare(`
-      INSERT INTO images (imageId, type, definitionName, parentImageId, definition, config, messages, createdAt)
-      VALUES (@imageId, @type, @definitionName, @parentImageId, @definition, @config, @messages, @createdAt)
+      INSERT INTO images (imageId, type, definitionName, parentImageId, definition, config, messages, createdAt, driverState)
+      VALUES (@imageId, @type, @definitionName, @parentImageId, @definition, @config, @messages, @createdAt, @driverState)
       ON CONFLICT(imageId) DO UPDATE SET
         type = @type,
         definitionName = @definitionName,
         parentImageId = @parentImageId,
         definition = @definition,
         config = @config,
-        messages = @messages
+        messages = @messages,
+        driverState = @driverState
     `);
 
     stmt.run({
@@ -144,6 +146,7 @@ export class SQLiteRepository implements Repository {
       config: JSON.stringify(record.config),
       messages: JSON.stringify(record.messages),
       createdAt: toISOString(record.createdAt),
+      driverState: record.driverState ? JSON.stringify(record.driverState) : null,
     });
   }
 
@@ -307,6 +310,7 @@ export class SQLiteRepository implements Repository {
       config: JSON.parse(row.config),
       messages: JSON.parse(row.messages),
       createdAt: new Date(row.createdAt),
+      driverState: row.driverState ? JSON.parse(row.driverState) : null,
     };
   }
 
@@ -349,6 +353,7 @@ interface ImageRow {
   config: string;
   messages: string;
   createdAt: string;
+  driverState: string | null;
 }
 
 interface SessionRow {

@@ -1,29 +1,23 @@
 /**
- * AgentDriver - Stateful Driver interface
+ * AgentDriver - Message Processing Interface
  *
- * AgentDriver is a STATEFUL driver that manages its own lifecycle.
- * Each Agent instance has its own Driver instance.
+ * AgentDriver is a pure message processor.
+ * It receives user messages and yields stream events.
  *
  * Key Design:
  * - One Agent = One Driver instance
- * - Driver manages its own state (connections, sessions, etc.)
- * - Context is passed at construction time
- * - Lifecycle tied to Agent lifecycle
+ * - Driver only handles message processing
+ * - Lifecycle management is Container's responsibility
+ * - Resume/history is Container's responsibility
  *
  * @example
  * ```typescript
  * class ClaudeDriver implements AgentDriver {
- *   private client: Anthropic;
- *   private context: AgentContext;
- *
- *   constructor(context: AgentContext) {
- *     this.context = context;
- *     this.client = new Anthropic({ apiKey: context.config.apiKey });
- *   }
+ *   readonly name = "ClaudeDriver";
  *
  *   async *receive(message: UserMessage) {
  *     const stream = this.client.messages.stream({
- *       model: this.context.config.model || "claude-sonnet-4-20250514",
+ *       model: "claude-sonnet-4-20250514",
  *       messages: [{ role: "user", content: message.content }],
  *     });
  *
@@ -32,8 +26,8 @@
  *     }
  *   }
  *
- *   async destroy() {
- *     // Cleanup resources
+ *   interrupt() {
+ *     this.abortController.abort();
  *   }
  * }
  * ```
@@ -41,13 +35,12 @@
 
 import type { StreamEventType } from "~/event";
 import type { UserMessage } from "~/message";
-import type { AgentContext } from "./AgentContext";
 
 /**
  * AgentDriver interface
  *
- * A stateful driver that receives user messages and yields stream events.
- * Each driver instance is bound to a single Agent.
+ * A message processor that receives user messages and yields stream events.
+ * Lifecycle (creation, resume, destruction) is managed by Container.
  */
 export interface AgentDriver {
   /**
@@ -72,35 +65,7 @@ export interface AgentDriver {
    * Interrupt the current operation
    *
    * Stops the current receive() operation gracefully.
-   * Driver should abort any ongoing requests and clean up state.
+   * Driver should abort any ongoing requests.
    */
   interrupt(): void;
-
-  /**
-   * Destroy the driver and cleanup resources
-   *
-   * Called when the Agent is destroyed.
-   */
-  destroy(): Promise<void>;
-}
-
-/**
- * Driver class constructor type (Legacy)
- *
- * @deprecated Use factory function pattern instead.
- * Runtime.createDriver() creates drivers directly.
- *
- * @example
- * ```typescript
- * // New pattern - factory function
- * function createClaudeDriver(config, context, sandbox): RuntimeDriver {
- *   // Create driver instance
- * }
- * ```
- */
-export interface DriverClass {
-  /**
-   * Constructor
-   */
-  new (context: AgentContext): AgentDriver;
 }

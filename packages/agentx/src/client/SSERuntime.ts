@@ -40,24 +40,155 @@ import type {
   AgentDefinition,
   Agent,
   Repository,
+  AgentImage,
+  Session,
 } from "@deepractice-ai/agentx-types";
+import { AgentInstance } from "@deepractice-ai/agentx-agent";
+import { AgentEngine } from "@deepractice-ai/agentx-engine";
 import { createSSEDriver } from "./SSEDriver";
 import { RemoteRepository } from "../repository";
 
+/**
+ * Server response for run/resume endpoints
+ */
+interface CreateAgentResponse {
+  agentId: string;
+  name: string;
+  lifecycle: string;
+  state: string;
+  createdAt: number;
+  endpoints: {
+    sse: string;
+    messages: string;
+    interrupt: string;
+  };
+}
+
 // ============================================================================
-// MemoryContainer - Simple in-memory container for browser
+// RemoteContainer - Container that calls remote server for agent creation
 // ============================================================================
 
-class MemoryContainer implements Container {
+class RemoteContainer implements Container {
   readonly id: string;
   private readonly agents = new Map<string, Agent>();
+  private readonly serverUrl: string;
+  private readonly headers: Record<string, string>;
+  private readonly engine: AgentEngine;
 
-  constructor(id: string = "sse-container") {
-    this.id = id;
+  constructor(serverUrl: string, headers: Record<string, string> = {}) {
+    this.id = "remote-container";
+    this.serverUrl = serverUrl;
+    this.headers = headers;
+    this.engine = new AgentEngine();
   }
 
-  register(agent: Agent): void {
-    this.agents.set(agent.agentId, agent);
+  /**
+   * Run agent from image (calls server POST /images/:imageId/run)
+   */
+  async run(image: AgentImage): Promise<Agent> {
+    // Call server to create agent
+    const response = await fetch(`${this.serverUrl}/images/${image.imageId}/run`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...this.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = (await response
+        .json()
+        .catch(() => ({ error: { message: "Unknown error" } }))) as {
+        error?: { message?: string };
+      };
+      throw new Error(errorBody.error?.message || `Failed to run image: ${response.status}`);
+    }
+
+    const data = (await response.json()) as CreateAgentResponse;
+
+    // Create local agent with SSE driver
+    return this.createLocalAgent(data.agentId, image.definition);
+  }
+
+  /**
+   * Resume agent from session (calls server POST /sessions/:sessionId/resume)
+   */
+  async resume(session: Session): Promise<Agent> {
+    // Call server to resume agent
+    const response = await fetch(`${this.serverUrl}/sessions/${session.sessionId}/resume`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...this.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = (await response
+        .json()
+        .catch(() => ({ error: { message: "Unknown error" } }))) as {
+        error?: { message?: string };
+      };
+      throw new Error(errorBody.error?.message || `Failed to resume session: ${response.status}`);
+    }
+
+    const data = (await response.json()) as CreateAgentResponse;
+
+    // Get definition from session's image (simplified - use name as fallback)
+    const definition: AgentDefinition = {
+      name: data.name,
+      systemPrompt: "", // Server handles system prompt
+    };
+
+    // Create local agent with SSE driver
+    return this.createLocalAgent(data.agentId, definition);
+  }
+
+  /**
+   * Create a local AgentInstance with SSE driver
+   */
+  private createLocalAgent(agentId: string, definition: AgentDefinition): Agent {
+    // Create context
+    const context: AgentContext = {
+      agentId,
+      createdAt: Date.now(),
+    };
+
+    // Create SSE driver
+    const driver = createSSEDriver({
+      serverUrl: this.serverUrl,
+      agentId,
+      headers: this.headers,
+    });
+
+    // Create agent instance
+    const agent = new AgentInstance(definition, context, this.engine, driver, noopSandbox);
+
+    // Register agent
+    this.agents.set(agentId, agent);
+
+    return agent;
+  }
+
+  /**
+   * Destroy agent (calls server DELETE /agents/:agentId)
+   */
+  async destroy(agentId: string): Promise<void> {
+    const agent = this.agents.get(agentId);
+    if (agent) {
+      await agent.destroy();
+    }
+
+    // Remove from local cache
+    this.agents.delete(agentId);
+
+    // Call server to destroy agent
+    await fetch(`${this.serverUrl}/agents/${agentId}`, {
+      method: "DELETE",
+      headers: this.headers,
+    }).catch(() => {
+      // Ignore errors - local cleanup is done
+    });
   }
 
   get(agentId: string): Agent | undefined {
@@ -68,20 +199,13 @@ class MemoryContainer implements Container {
     return this.agents.has(agentId);
   }
 
-  unregister(agentId: string): boolean {
-    return this.agents.delete(agentId);
+  list(): Agent[] {
+    return Array.from(this.agents.values());
   }
 
-  getAllIds(): string[] {
-    return Array.from(this.agents.keys());
-  }
-
-  count(): number {
-    return this.agents.size;
-  }
-
-  clear(): void {
-    this.agents.clear();
+  async destroyAll(): Promise<void> {
+    const agentIds = Array.from(this.agents.keys());
+    await Promise.all(agentIds.map((id) => this.destroy(id)));
   }
 }
 
@@ -121,16 +245,6 @@ export interface SSERuntimeConfig {
    * Optional request headers (for auth, etc.)
    */
   headers?: Record<string, string>;
-
-  /**
-   * Connect to an existing agent on the server (optional)
-   *
-   * If provided, SSEDriver will use this agentId instead of the one
-   * generated by AgentManager. This is useful when:
-   * - Server creates the agent and returns agentId
-   * - Browser needs to connect to that existing agent
-   */
-  agentId?: string;
 }
 
 /**
@@ -138,6 +252,9 @@ export interface SSERuntimeConfig {
  *
  * Connects to remote AgentX server via SSE.
  * All resources (LLM, etc.) are provided by the server.
+ *
+ * Uses RemoteContainer which calls server POST /agents to create agents.
+ * This ensures browser and server use the same agentId.
  */
 class SSERuntime implements Runtime {
   readonly name = "sse";
@@ -146,13 +263,12 @@ class SSERuntime implements Runtime {
 
   private readonly serverUrl: string;
   private readonly headers: Record<string, string>;
-  private readonly existingAgentId?: string;
 
   constructor(config: SSERuntimeConfig) {
     this.serverUrl = config.serverUrl.replace(/\/+$/, ""); // Remove trailing slash
     this.headers = config.headers ?? {};
-    this.existingAgentId = config.agentId;
-    this.container = new MemoryContainer();
+    // Use RemoteContainer - it calls server to resolve agentId
+    this.container = new RemoteContainer(this.serverUrl, this.headers);
     this.repository = new RemoteRepository({ serverUrl: this.serverUrl });
   }
 
@@ -166,13 +282,11 @@ class SSERuntime implements Runtime {
     context: AgentContext,
     _sandbox: Sandbox
   ): RuntimeDriver {
-    // Use existing agentId if provided, otherwise use the one from context
-    const agentId = this.existingAgentId ?? context.agentId;
-
-    // Create SSE driver that connects to remote server
+    // context.agentId is already resolved by RemoteContainer.resolveAgentId()
+    // which called POST /agents on server - so it's the server's agentId
     const driver = createSSEDriver({
       serverUrl: this.serverUrl,
-      agentId,
+      agentId: context.agentId,
       headers: this.headers,
     });
 

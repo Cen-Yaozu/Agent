@@ -37,7 +37,7 @@
  */
 
 import type { AgentError, AgentState, Message } from "@deepractice-ai/agentx-types";
-import { MoreHorizontal, Pin, Bot } from "lucide-react";
+import { Bot } from "lucide-react";
 import { MessagePane } from "./MessagePane";
 import type { AgentDefinitionItem, SessionItem } from "./types";
 
@@ -51,6 +51,11 @@ export interface AgentPaneProps {
    * Current session (for display)
    */
   session: SessionItem | null;
+
+  /**
+   * Current agent ID (for display)
+   */
+  agentId?: string | null;
 
   /**
    * Messages to display
@@ -103,6 +108,7 @@ export interface AgentPaneProps {
 export function AgentPane({
   definition,
   session,
+  agentId,
   messages = [],
   streaming,
   errors = [],
@@ -116,7 +122,7 @@ export function AgentPane({
   if (isLoading && messages.length === 0 && !streaming) {
     return (
       <div className={`h-full flex flex-col bg-background ${className}`}>
-        {definition && <AgentHeader definition={definition} session={session} />}
+        {definition && <AgentHeader definition={definition} session={session} agentId={agentId} />}
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center text-center">
             <div className="animate-pulse mb-4">
@@ -132,7 +138,7 @@ export function AgentPane({
   // Ready state - show MessagePane (handles empty state internally)
   return (
     <div className={`h-full flex flex-col bg-background ${className}`}>
-      {definition && <AgentHeader definition={definition} session={session} />}
+      {definition && <AgentHeader definition={definition} session={session} agentId={agentId} />}
 
       <div className="flex-1 min-h-0">
         <MessagePane
@@ -154,11 +160,12 @@ export function AgentPane({
 interface AgentHeaderProps {
   definition: AgentDefinitionItem;
   session: SessionItem | null;
+  agentId?: string | null;
 }
 
-function AgentHeader({ definition, session }: AgentHeaderProps) {
+function AgentHeader({ definition, agentId }: AgentHeaderProps) {
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background flex-shrink-0">
+    <div className="flex items-center px-4 py-3 border-b border-border bg-background flex-shrink-0">
       <div className="flex items-center gap-3">
         {/* Agent avatar */}
         <div
@@ -171,33 +178,9 @@ function AgentHeader({ definition, session }: AgentHeaderProps) {
 
         {/* Info */}
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-foreground">{definition.name}</span>
-            {definition.isOnline && (
-              <span className="flex items-center gap-1 text-xs text-green-500">
-                <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                Online
-              </span>
-            )}
-          </div>
-          {session && <p className="text-xs text-muted-foreground">{session.title}</p>}
+          <span className="text-sm font-semibold text-foreground">{definition.name}</span>
+          {agentId && <p className="text-xs text-muted-foreground font-mono">{agentId}</p>}
         </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-1">
-        <button
-          className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-          title="Pin conversation"
-        >
-          <Pin className="w-4 h-4" />
-        </button>
-        <button
-          className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-          title="More options"
-        >
-          <MoreHorizontal className="w-4 h-4" />
-        </button>
       </div>
     </div>
   );

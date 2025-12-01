@@ -24,7 +24,7 @@
  */
 
 import { useState, useMemo } from "react";
-import { Search, Plus, MessageSquare } from "lucide-react";
+import { Search, Plus, MessageSquare, Trash2 } from "lucide-react";
 import type { SessionItem } from "./types";
 
 export interface SessionPaneProps {
@@ -92,6 +92,7 @@ export function SessionPane({
   agentName,
   onSelect,
   onCreate,
+  onDelete,
   className = "",
 }: SessionPaneProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -138,14 +139,14 @@ export function SessionPane({
           const isActive = current?.sessionId === session.sessionId;
 
           return (
-            <button
+            <div
               key={session.sessionId}
-              onClick={() => onSelect(session)}
               className={`
-                w-full flex items-start gap-3 px-3 py-2.5 text-left
-                transition-colors
+                group relative w-full flex items-start gap-3 px-3 py-2.5 text-left
+                transition-colors cursor-pointer
                 ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-muted/50"}
               `}
+              onClick={() => onSelect(session)}
             >
               {/* Content */}
               <div className="flex-1 min-w-0">
@@ -170,7 +171,23 @@ export function SessionPane({
                   {formatRelativeTime(session.updatedAt)}
                 </p>
               </div>
-            </button>
+
+              {/* Delete button - show on hover */}
+              {onDelete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(session.sessionId);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md
+                             opacity-0 group-hover:opacity-100 transition-opacity
+                             hover:bg-destructive/10 hover:text-destructive"
+                  title="Delete session"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           );
         })}
 

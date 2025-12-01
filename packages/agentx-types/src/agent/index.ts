@@ -84,7 +84,7 @@ export type {
 } from "./Agent";
 
 // Driver & Presenter
-export type { AgentDriver, DriverClass } from "./AgentDriver";
+export type { AgentDriver } from "./AgentDriver";
 export type { AgentPresenter } from "./AgentPresenter";
 
 // Config & Definition

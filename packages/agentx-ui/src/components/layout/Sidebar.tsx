@@ -3,21 +3,6 @@ import { cn } from "~/utils/utils";
 
 export interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
-   * Initial width in pixels
-   * @default 256
-   */
-  width?: number;
-  /**
-   * Minimum width in pixels
-   * @default 200
-   */
-  minWidth?: number;
-  /**
-   * Maximum width in pixels
-   * @default 600
-   */
-  maxWidth?: number;
-  /**
    * Position of the sidebar
    * @default 'left'
    */
@@ -29,10 +14,11 @@ export interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 /**
- * Sidebar - Resizable sidebar container
+ * Sidebar - Sidebar container
  *
  * A container for sidebar content with consistent styling.
  * Should be used with Allotment for resizing functionality.
+ * Width is controlled by Allotment.Pane, not by this component.
  *
  * @example
  * ```tsx
@@ -49,32 +35,16 @@ export interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
  * ```
  */
 export const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
-  (
-    {
-      width = 256,
-      minWidth = 200,
-      maxWidth = 600,
-      position = "left",
-      className,
-      children,
-      ...props
-    },
-    ref
-  ) => {
+  ({ position = "left", className, children, ...props }, ref) => {
     return (
       <div
         ref={ref}
         className={cn(
-          "h-full flex flex-col",
+          "h-full w-full flex flex-col",
           "bg-muted/30 border-border",
           position === "left" ? "border-r" : "border-l",
           className
         )}
-        style={{
-          width: `${width}px`,
-          minWidth: `${minWidth}px`,
-          maxWidth: `${maxWidth}px`,
-        }}
         {...props}
       >
         {children}

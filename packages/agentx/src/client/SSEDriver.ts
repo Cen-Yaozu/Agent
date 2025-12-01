@@ -263,10 +263,5 @@ export function createSSEDriver(config: SSEDriverConfig): AgentDriver {
         // Ignore errors - interrupt is best-effort
       });
     },
-
-    async destroy(): Promise<void> {
-      connection?.close();
-      connection = null;
-    },
   };
 }

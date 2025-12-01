@@ -259,6 +259,7 @@ export function Workspace({
                 <AgentPane
                   definition={currentDefinition}
                   session={currentSession}
+                  agentId={agent?.agentId}
                   messages={messages}
                   streaming={streaming}
                   errors={errors}

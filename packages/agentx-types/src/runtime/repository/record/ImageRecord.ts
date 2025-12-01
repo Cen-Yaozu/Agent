@@ -79,4 +79,13 @@ export interface ImageRecord {
    * Creation timestamp
    */
   createdAt: Date;
+
+  /**
+   * Driver-specific state for resume capability
+   * - Generic storage for driver implementation details
+   * - Claude Driver: { sdkSessionId: "xxx" }
+   * - Other drivers can store their own resume data
+   * - May be null for images that haven't been run yet
+   */
+  driverState?: Record<string, unknown> | null;
 }

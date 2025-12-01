@@ -1,49 +1,63 @@
 /**
- * Container
+ * Container - Agent Lifecycle Manager
  *
- * Runtime container for managing multiple Agents.
- * Each Agent holds its own Sandbox (isolated resources).
+ * Single point for all Agent lifecycle operations.
+ * Abstracts platform-specific implementations.
  *
- * Architecture:
- * ```
- * ┌─────────────────────────────────────────────────┐
- * │                  Container                       │
- * │  ┌───────────────────────────────────────────┐  │
- * │  │  Agent 1 ──────→ Sandbox 1 (OS/Workspace) │  │
- * │  │  Agent 2 ──────→ Sandbox 2 (OS/Workspace) │  │
- * │  │  Agent 3 ──────→ Sandbox 3 (OS/Workspace) │  │
- * │  └───────────────────────────────────────────┘  │
- * └─────────────────────────────────────────────────┘
- * ```
- *
- * Key responsibilities:
- * - Manage Agent lifecycle (register, get, destroy)
- * - Platform abstraction (different Container impl = different platform)
- *
- * Platform examples:
- * - LocalContainer: Node.js local execution
- * - DockerContainer: Docker container execution
- * - CloudflareContainer: Cloudflare Workers execution
+ * See index.ts for full design documentation.
  */
 
 import type { Agent } from "../../agent";
+import type { AgentImage } from "../../image";
+import type { Session } from "../../session";
 
 /**
  * Container - Agent runtime container
  *
- * Manages multiple Agents. Injected into AgentX for platform abstraction.
+ * Manages Agent lifecycle: creation, resume, destruction.
+ * Different implementations for different platforms:
+ * - NodeContainer: Server-side, creates real Drivers
+ * - BrowserContainer: Client-side, uses SSE to server
  */
 export interface Container {
   /** Container identifier */
   readonly id: string;
 
   /**
-   * Register an agent
+   * Run a new agent from image (like `docker run`)
+   *
+   * Creates a fresh agent with no conversation history.
+   *
+   * @param image - Agent image containing definition and config
+   * @returns Running agent instance
    */
-  register(agent: Agent): void;
+  run(image: AgentImage): Promise<Agent>;
 
   /**
-   * Get agent by ID
+   * Resume an agent from session (like `docker start`)
+   *
+   * Restores agent with conversation history.
+   * Implementation handles SDK-specific resume mechanisms internally:
+   * - Claude SDK: Uses sdkSessionId for native resume
+   * - OpenAI: Injects messages array
+   * - Others: Platform-specific
+   *
+   * @param session - Session containing imageId and context
+   * @returns Running agent instance with history restored
+   */
+  resume(session: Session): Promise<Agent>;
+
+  /**
+   * Destroy an agent (like `docker stop/rm`)
+   *
+   * Cleans up agent resources via agent.destroy().
+   *
+   * @param agentId - Agent identifier
+   */
+  destroy(agentId: string): Promise<void>;
+
+  /**
+   * Get agent by ID (like `docker inspect`)
    */
   get(agentId: string): Agent | undefined;
 
@@ -53,22 +67,12 @@ export interface Container {
   has(agentId: string): boolean;
 
   /**
-   * Unregister agent by ID
+   * List all running agents (like `docker ps`)
    */
-  unregister(agentId: string): boolean;
+  list(): Agent[];
 
   /**
-   * Get all agent IDs
+   * Destroy all agents
    */
-  getAllIds(): string[];
-
-  /**
-   * Get total count
-   */
-  count(): number;
-
-  /**
-   * Clear all agents
-   */
-  clear(): void;
+  destroyAll(): Promise<void>;
 }
