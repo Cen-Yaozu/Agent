@@ -32,8 +32,6 @@ import type { SessionManager } from "./session";
 import type { PlatformManager } from "./platform";
 import type { DefinitionManager } from "./definition";
 import type { ImageManager } from "./image";
-import type { ProviderKey } from "./ProviderKey";
-
 /**
  * Base AgentX interface (shared by Local and Remote)
  */
@@ -52,44 +50,6 @@ interface AgentXBase {
    * Agent lifecycle management
    */
   readonly agents: AgentManager;
-
-  /**
-   * Register a provider
-   *
-   * Providers allow external implementations to be injected
-   * into the AgentX platform (e.g., LoggerFactory).
-   *
-   * @param key - Type-safe provider key
-   * @param provider - Provider implementation
-   *
-   * @example
-   * ```typescript
-   * import { LoggerFactoryKey } from "@deepractice-ai/agentx-types";
-   *
-   * agentx.provide(LoggerFactoryKey, {
-   *   getLogger(name) {
-   *     return new PinoLogger(name);
-   *   }
-   * });
-   * ```
-   */
-  provide<T>(key: ProviderKey<T>, provider: T): void;
-
-  /**
-   * Resolve a provider
-   *
-   * @param key - Type-safe provider key
-   * @returns Provider implementation or undefined if not registered
-   *
-   * @example
-   * ```typescript
-   * const factory = agentx.resolve(LoggerFactoryKey);
-   * if (factory) {
-   *   const logger = factory.getLogger("MyModule");
-   * }
-   * ```
-   */
-  resolve<T>(key: ProviderKey<T>): T | undefined;
 }
 
 /**

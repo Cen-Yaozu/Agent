@@ -117,19 +117,20 @@ async function startDevServer() {
   // Import AgentX modules
   const { createAgentX } = await import("@deepractice-ai/agentx");
   const { createAgentXHandler } = await import("@deepractice-ai/agentx/server");
-  const { LoggerFactoryKey } = await import("@deepractice-ai/agentx-types");
-  const { runtime } = await import("@deepractice-ai/agentx/runtime/node");
+  const { nodeRuntime, envLLM, sqlite } = await import("@deepractice-ai/agentx/runtime/node");
 
   // Import agent definition
   const { ClaudeAgent } = await import("./agent.js");
 
-  // Create AgentX instance with NodeRuntime
-  const agentx = createAgentX(runtime);
-
-  // Provide custom LoggerFactory
-  agentx.provide(LoggerFactoryKey, {
-    getLogger: (name: string) => createFileLogger(name, logFilePath),
+  // Create AgentX instance with NodeRuntime and custom logger
+  const customRuntime = nodeRuntime({
+    llm: envLLM(),
+    repository: sqlite(),
+    logger: {
+      getLogger: (name: string) => createFileLogger(name, logFilePath),
+    },
   });
+  const agentx = createAgentX(customRuntime);
 
   // Register definition (auto-creates MetaImage)
   // This is required for images.getMetaImage() and images.run() to work
@@ -141,7 +142,7 @@ async function startDevServer() {
     basePath: "/agentx",
     allowDynamicCreation: true,
     allowedDefinitions: ["ClaudeAgent"],
-    repository: runtime.repository,
+    repository: customRuntime.repository,
   });
 
   // Also register with handler for backward compatibility

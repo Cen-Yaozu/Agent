@@ -61,9 +61,6 @@
 // Runtime interface - unified infrastructure entry point
 export type { Runtime } from "./Runtime";
 
-// RuntimeProvider - injectable runtime components
-export type { RuntimeProvider } from "./RuntimeProvider";
-
 // RuntimeDriver - Driver + Sandbox combination
 export type { RuntimeDriver } from "./driver/RuntimeDriver";
 

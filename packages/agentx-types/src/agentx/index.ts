@@ -144,7 +144,3 @@ export type { DefinitionManager } from "./definition";
 
 // Image module (Manager) - manages MetaImage and DerivedImage
 export type { ImageManager } from "./image";
-
-// Provider types - dependency injection
-export type { ProviderKey } from "./ProviderKey";
-export { createProviderKey, LoggerFactoryKey } from "./ProviderKey";

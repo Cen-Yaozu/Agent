@@ -177,7 +177,6 @@ export type {
   // Runtime types
   Runtime,
   RuntimeDriver,
-  RuntimeConfig,
   Container,
   Sandbox,
   // Error types
