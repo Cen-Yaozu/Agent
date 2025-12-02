@@ -9,7 +9,7 @@
  */
 
 import type { AgentDriver } from "~/agent/AgentDriver";
-import type { Sandbox } from "./sandbox";
+import type { Sandbox } from "../sandbox";
 
 /**
  * RuntimeDriver - Driver with Sandbox

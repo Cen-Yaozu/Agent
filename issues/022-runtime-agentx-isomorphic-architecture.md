@@ -37,7 +37,7 @@ AgentX 思维：
          ▼                               ▼
 ┌─────────────────────┐       ┌─────────────────────┐
 │   Server Runtime    │       │   Browser Runtime   │
-│   (agentx-node)     │       │   (SSERuntime)      │
+│   (agentx-runtime)     │       │   (SSERuntime)      │
 │                     │       │                     │
 │   SQLiteRepository  │       │   RemoteRepository  │
 │   (直接写数据库)     │       │   (HTTP → Server)   │
@@ -104,10 +104,10 @@ export function createAgentX(runtime: Runtime): AgentX {
 
 ### 3. 基础设施层（Runtime 实现）
 
-#### Server Runtime (agentx-node)
+#### Server Runtime (agentx-runtime)
 
 ```typescript
-// agentx-node/src/NodeRuntime.ts
+// agentx-runtime/src/NodeRuntime.ts
 class NodeRuntime implements Runtime {
   repository = new SQLiteRepository("./data/agent.db");
 
@@ -253,7 +253,7 @@ class FirebaseRepository implements Repository { ... }
 ### Server 端
 
 ```
-用户代码                    agentx                   agentx-node
+用户代码                    agentx                   agentx-runtime
 ────────                   ──────                   ───────────
 
 agentx.definitions         DefinitionManagerImpl    SQLiteRepository
@@ -297,7 +297,7 @@ packages/
 │   └── repository/
 │       └── RemoteRepository.ts  # HTTP 实现
 │
-├── agentx-node/src/
+├── agentx-runtime/src/
 │   ├── NodeRuntime.ts        # Server Runtime
 │   └── repository/
 │       └── SQLiteRepository.ts  # SQLite 实现

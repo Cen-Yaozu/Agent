@@ -22,7 +22,7 @@
  *          ▼                                       ▼
  * ┌─────────────────────┐               ┌─────────────────────┐
  * │  SQLiteRepository   │               │  RemoteRepository   │
- * │  (agentx-node)      │               │  (agentx/client)    │
+ * │  (agentx-runtime)      │               │  (agentx/client)    │
  * │                     │               │                     │
  * │  Definition: Map    │               │  Definition: HTTP   │
  * │  Image: SQLite      │   ◄──HTTP──►  │  Image: HTTP        │

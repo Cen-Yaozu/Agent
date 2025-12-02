@@ -2,7 +2,7 @@
  * Storage Records - Pure data types for persistence
  *
  * These types define the storage schema used by both:
- * - SQLite schema (agentx-node)
+ * - SQLite schema (agentx-runtime)
  * - HTTP API contracts (agentx remote)
  *
  * Part of Docker-style layered architecture:

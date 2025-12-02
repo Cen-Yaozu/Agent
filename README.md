@@ -30,7 +30,7 @@ AgentX is an **AI Agent runtime framework** that brings Docker-style lifecycle m
 
 ```typescript
 import { defineAgent, createAgentX } from "@deepractice-ai/agentx";
-import { runtime } from "@deepractice-ai/agentx-node";
+import { runtime } from "@deepractice-ai/agentx-runtime";
 
 // 1. Define your agent (like Dockerfile)
 const TranslatorAgent = defineAgent({
@@ -161,7 +161,7 @@ Same business code runs on Server and Browser:
 npm install @deepractice-ai/agentx
 
 # Node.js runtime (Server)
-npm install @deepractice-ai/agentx-node
+npm install @deepractice-ai/agentx-runtime
 
 # React UI components (optional)
 npm install @deepractice-ai/agentx-ui
@@ -175,7 +175,7 @@ npm install @deepractice-ai/agentx-ui
 
 ```typescript
 import { defineAgent, createAgentX } from "@deepractice-ai/agentx";
-import { runtime } from "@deepractice-ai/agentx-node";
+import { runtime } from "@deepractice-ai/agentx-runtime";
 
 const agentx = createAgentX(runtime);
 
@@ -274,16 +274,16 @@ agent.react({
 
 ## Packages
 
-| Package                         | Description                                       |
-| ------------------------------- | ------------------------------------------------- |
-| `@deepractice-ai/agentx-types`  | Type definitions (140+ files, zero dependencies)  |
-| `@deepractice-ai/agentx-adk`    | Agent Development Kit (defineAgent, defineDriver) |
-| `@deepractice-ai/agentx-logger` | SLF4J-style logging facade                        |
-| `@deepractice-ai/agentx-engine` | Mealy Machine event processor                     |
-| `@deepractice-ai/agentx-agent`  | Agent runtime core                                |
-| `@deepractice-ai/agentx`        | Platform API (unified entry point)                |
-| `@deepractice-ai/agentx-node`   | Node.js runtime (Claude driver, SQLite)           |
-| `@deepractice-ai/agentx-ui`     | React UI components                               |
+| Package                          | Description                                       |
+| -------------------------------- | ------------------------------------------------- |
+| `@deepractice-ai/agentx-types`   | Type definitions (140+ files, zero dependencies)  |
+| `@deepractice-ai/agentx-adk`     | Agent Development Kit (defineAgent, defineDriver) |
+| `@deepractice-ai/agentx-logger`  | SLF4J-style logging facade                        |
+| `@deepractice-ai/agentx-engine`  | Mealy Machine event processor                     |
+| `@deepractice-ai/agentx-agent`   | Agent runtime core                                |
+| `@deepractice-ai/agentx`         | Platform API (unified entry point)                |
+| `@deepractice-ai/agentx-runtime` | Node.js runtime (Claude driver, SQLite)           |
+| `@deepractice-ai/agentx-ui`      | React UI components                               |
 
 ---
 

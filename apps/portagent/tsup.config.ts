@@ -15,7 +15,7 @@ export default defineConfig({
   external: [
     // Don't bundle workspace packages
     "@deepractice-ai/agentx",
-    "@deepractice-ai/agentx-node",
+    "@deepractice-ai/agentx-runtime",
     "@deepractice-ai/agentx-types",
     // Don't bundle Node.js dependencies (CJS compatibility)
     "dotenv",

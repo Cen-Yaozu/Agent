@@ -1,7 +1,7 @@
 {
-  "name": "@deepractice-ai/agentx-node",
+  "name": "@deepractice-ai/agentx-runtime",
   "version": "0.1.0",
-  "description": "Node.js Runtime for AgentX with Claude driver",
+  "description": "Standard Runtime for AgentX with pluggable components (LLM, Repository, Logger, Driver)",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

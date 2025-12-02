@@ -22,7 +22,7 @@ This is a **pnpm monorepo** with Turborepo build orchestration:
     ├── agentx-engine/    # Mealy Machine event processor
     ├── agentx-agent/     # Agent runtime
     ├── agentx/           # Platform API (local/remote, server/client)
-    ├── agentx-node/      # Node.js runtime (Claude driver, SQLite, FileLogger)
+    ├── agentx-runtime/      # Node.js runtime (Claude driver, SQLite, FileLogger)
     └── agentx-ui/        # React UI components (Storybook, Tailwind v4)
 ```
 
@@ -231,22 +231,22 @@ agentx-agent (Agent runtime)
     ↓
 agentx (Platform API: local/remote, server/client)
     ↓
-agentx-node (Node.js runtime: Claude driver, SQLite, FileLogger)
+agentx-runtime (Node.js runtime: Claude driver, SQLite, FileLogger)
     ↓
 agentx-ui (React components)
 ```
 
 **Layer Responsibilities:**
 
-| Layer        | Package         | Responsibility                                      |
-| ------------ | --------------- | --------------------------------------------------- |
-| **Types**    | `agentx-types`  | Pure type definitions, logger type declarations     |
-| **Common**   | `agentx-common` | Internal shared utilities (logger facade)           |
-| **Engine**   | `agentx-engine` | Pure event processing (Mealy Machines)              |
-| **Agent**    | `agentx-agent`  | Agent runtime, EventBus, lifecycle management       |
-| **Platform** | `agentx`        | Unified API, SSE server/client, browser runtime     |
-| **Node**     | `agentx-node`   | Node.js runtime (Claude driver, SQLite, FileLogger) |
-| **UI**       | `agentx-ui`     | React components, Storybook, Tailwind v4            |
+| Layer        | Package          | Responsibility                                      |
+| ------------ | ---------------- | --------------------------------------------------- |
+| **Types**    | `agentx-types`   | Pure type definitions, logger type declarations     |
+| **Common**   | `agentx-common`  | Internal shared utilities (logger facade)           |
+| **Engine**   | `agentx-engine`  | Pure event processing (Mealy Machines)              |
+| **Agent**    | `agentx-agent`   | Agent runtime, EventBus, lifecycle management       |
+| **Platform** | `agentx`         | Unified API, SSE server/client, browser runtime     |
+| **Node**     | `agentx-runtime` | Node.js runtime (Claude driver, SQLite, FileLogger) |
+| **UI**       | `agentx-ui`      | React components, Storybook, Tailwind v4            |
 
 **Directory Structure** (all packages follow this):
 
@@ -1145,7 +1145,7 @@ import { createRemoteAgent } from "@deepractice-ai/agentx/client";
 
 **Note**: `defineAgent()` has been moved to `agentx-adk` package.
 
-### agentx-node
+### agentx-runtime
 
 **Purpose**: Node.js runtime - Claude driver, SQLite persistence, FileLogger
 
@@ -1158,10 +1158,10 @@ import { createRemoteAgent } from "@deepractice-ai/agentx/client";
 **Import Pattern:**
 
 ```typescript
-import { runtime } from "@deepractice-ai/agentx-node";
+import { runtime } from "@deepractice-ai/agentx-runtime";
 
 // Or access components directly
-import { NodeRuntime, ClaudeDriver } from "@deepractice-ai/agentx-node";
+import { NodeRuntime, ClaudeDriver } from "@deepractice-ai/agentx-runtime";
 ```
 
 **Data Storage**: `~/.agentx/` directory

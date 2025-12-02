@@ -62,7 +62,7 @@ runtime/
 - [x] **Simplified AgentDefinition**: Only `name`, `description`, `systemPrompt` (removed driver, config, presenters)
 - [x] **Runtime collects config from environment**: apiKey, baseUrl, model from env vars
 - [x] **Deleted agentx-adk package**: Moved `defineAgent` to `agentx`
-- [x] **Renamed agentx-claude to agentx-node**: Contains `NodeRuntime` and `ClaudeDriver`
+- [x] **Renamed agentx-claude to agentx-runtime**: Contains `NodeRuntime` and `ClaudeDriver`
 - [x] **Created SSERuntime for browser**: Replaces `createRemoteAgent`
 - [x] **Deleted redundant files**: createRemoteAgent, RemoteAgent, AgentXClient, SSEClientTransport
 
@@ -71,7 +71,7 @@ runtime/
 ```typescript
 // Server (Node.js)
 import { createAgentX, defineAgent } from "@deepractice-ai/agentx";
-import { runtime } from "@deepractice-ai/agentx-node";
+import { runtime } from "@deepractice-ai/agentx-runtime";
 
 const MyAgent = defineAgent({
   name: "Assistant",
@@ -122,7 +122,7 @@ packages/
 │           ├── SSERuntime.ts       # Browser Runtime
 │           └── SSEDriver.ts        # SSE Driver for browser
 │
-├── agentx-node/            # Node.js Runtime (was agentx-claude)
+├── agentx-runtime/            # Node.js Runtime (was agentx-claude)
 │   └── src/
 │       ├── NodeRuntime.ts          # Runtime implementation
 │       ├── ClaudeDriver.ts         # Claude SDK driver
@@ -130,8 +130,8 @@ packages/
 │
 └── [DELETED]
     ├── agentx-adk/         # Merged into agentx
-    ├── agentx-runtime/     # Merged into agentx-node
-    └── agentx-claude/      # Renamed to agentx-node
+    ├── agentx-runtime/     # Merged into agentx-runtime
+    └── agentx-claude/      # Renamed to agentx-runtime
 ```
 
 **Key Design Principles:**

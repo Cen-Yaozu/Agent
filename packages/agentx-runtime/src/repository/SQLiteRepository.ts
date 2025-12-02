@@ -10,7 +10,7 @@
  *
  * @example
  * ```typescript
- * import { SQLiteRepository } from "@deepractice-ai/agentx-node";
+ * import { SQLiteRepository } from "@deepractice-ai/agentx-runtime";
  *
  * const repository = new SQLiteRepository("./data/agentx.db");
  * ```

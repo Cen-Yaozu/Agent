@@ -62,7 +62,7 @@
 export type { Runtime } from "./Runtime";
 
 // RuntimeDriver - Driver + Sandbox combination
-export type { RuntimeDriver } from "./RuntimeDriver";
+export type { RuntimeDriver } from "./driver/RuntimeDriver";
 
 // Container - Agent lifecycle management
 export * from "./container";

@@ -8,7 +8,7 @@
  * @example
  * ```typescript
  * import { defineAgent, createAgentX } from "@deepractice-ai/agentx";
- * import { runtime } from "@deepractice-ai/agentx-node";
+ * import { runtime } from "@deepractice-ai/agentx-runtime";
  *
  * const MyAgent = defineAgent({
  *   name: "Translator",

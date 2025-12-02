@@ -18,7 +18,7 @@
 import type { Container } from "./container";
 import type { Sandbox } from "./sandbox";
 import type { Repository } from "./repository";
-import type { RuntimeDriver } from "./RuntimeDriver";
+import type { RuntimeDriver } from "./driver/RuntimeDriver";
 import type { AgentContext } from "~/agent/AgentContext";
 import type { AgentDefinition } from "~/agent/AgentDefinition";
 import type { LoggerFactory } from "~/common/logger";

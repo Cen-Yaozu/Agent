@@ -14,7 +14,7 @@
  * @example
  * ```typescript
  * import { defineAgent, createAgentX } from "@deepractice-ai/agentx";
- * import { runtime } from "@deepractice-ai/agentx-node";
+ * import { runtime } from "@deepractice-ai/agentx-runtime";
  *
  * const MyAgent = defineAgent({
  *   name: "Translator",
@@ -35,8 +35,7 @@ export { runtime, NodeRuntime } from "./NodeRuntime";
 export { EnvLLMProvider, type LLMSupply } from "./llm";
 
 // ==================== Driver (for advanced use) ====================
-export { createClaudeDriver } from "./ClaudeDriver";
-export type { ClaudeDriverConfig } from "./ClaudeDriver";
+export { createClaudeDriver, type ClaudeDriverConfig, type ClaudeDriverOptions } from "./driver";
 
 // ==================== Repository ====================
 export { SQLiteRepository } from "./repository";

@@ -28,7 +28,7 @@ This means:
                      │
 ┌────────────────────┼──────────────────────────┐
 │                    ▼                          │
-│  agentx-node (WebSocket Server)              │
+│  agentx-runtime (WebSocket Server)              │
 │  ↓                                            │
 │  Claude API (Real AI responses)              │
 └───────────────────────────────────────────────┘
@@ -50,7 +50,7 @@ This starts:
 - WebSocket Server on `ws://localhost:5200/ws`
 - Connected to real Claude API
 - With logging enabled for debugging
-- 🔥 **Auto-reload**: Watches agentx-node changes, rebuilds and restarts automatically
+- 🔥 **Auto-reload**: Watches agentx-runtime changes, rebuilds and restarts automatically
 - WebSocket clients auto-reconnect on restart
 
 **Output:**

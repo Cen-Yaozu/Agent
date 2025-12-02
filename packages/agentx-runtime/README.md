@@ -1,4 +1,4 @@
-# @deepractice-ai/agentx-node
+# @deepractice-ai/agentx-runtime
 
 **Node.js Runtime for AgentX** - Contains `NodeRuntime` and `ClaudeDriver`.
 
@@ -11,14 +11,14 @@ This package provides the Node.js Runtime for the AgentX platform. It implements
 ## Installation
 
 ```bash
-pnpm add @deepractice-ai/agentx-node
+pnpm add @deepractice-ai/agentx-runtime
 ```
 
 ## Quick Start
 
 ```typescript
 import { defineAgent, createAgentX } from "@deepractice-ai/agentx";
-import { runtime } from "@deepractice-ai/agentx-node";
+import { runtime } from "@deepractice-ai/agentx-runtime";
 
 // 1. Define agent (business config only)
 const MyAgent = defineAgent({
@@ -57,7 +57,7 @@ NodeRuntime collects configuration from environment variables:
 Pre-configured NodeRuntime instance, ready to use:
 
 ```typescript
-import { runtime } from "@deepractice-ai/agentx-node";
+import { runtime } from "@deepractice-ai/agentx-runtime";
 
 const agentx = createAgentX(runtime);
 ```
@@ -67,7 +67,7 @@ const agentx = createAgentX(runtime);
 The Runtime implementation for Node.js:
 
 ```typescript
-import { NodeRuntime } from "@deepractice-ai/agentx-node";
+import { NodeRuntime } from "@deepractice-ai/agentx-runtime";
 
 // Custom runtime instance (if needed)
 const myRuntime = new NodeRuntime();
@@ -85,7 +85,7 @@ const agentx = createAgentX(myRuntime);
 For advanced use cases where you need direct driver access:
 
 ```typescript
-import { createClaudeDriver } from "@deepractice-ai/agentx-node";
+import { createClaudeDriver } from "@deepractice-ai/agentx-runtime";
 
 const driver = createClaudeDriver(definition, context, sandbox, {
   apiKey: "sk-xxx",

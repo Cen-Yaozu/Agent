@@ -48,7 +48,7 @@ mindmap
       核心层
         agentx-core::Agent/EventBus/Logger
       平台层
-        agentx-node::Node.js Provider
+        agentx-runtime::Node.js Provider
         agentx-browser::Browser Provider
       UI层
         agentx-ui::React 组件
@@ -68,7 +68,7 @@ graph TB
     end
 
     subgraph "平台层 (Platform Specific)"
-        NODE[agentx-node<br/>ClaudeProvider<br/>WebSocketServer<br/>WebSocketBridge]
+        NODE[agentx-runtime<br/>ClaudeProvider<br/>WebSocketServer<br/>WebSocketBridge]
         BROWSER[agentx-browser<br/>BrowserProvider<br/>WebSocket Client]
     end
 
@@ -281,7 +281,7 @@ flowchart TD
     TS_CHECK -->|是| IMPL
 
     IMPL --> IMPL_CORE[2. 实现核心逻辑<br/>agentx-core]
-    IMPL_CORE --> IMPL_PROVIDER[3. 实现 Provider<br/>agentx-node/browser]
+    IMPL_CORE --> IMPL_PROVIDER[3. 实现 Provider<br/>agentx-runtime/browser]
     IMPL_PROVIDER --> IMPL_UI[4. 实现 UI<br/>agentx-ui]
 
     IMPL_UI --> TEST[5. 测试]
@@ -413,8 +413,8 @@ graph LR
     end
 
     subgraph "第3天: 平台适配"
-        D3_1[agentx-node<br/>ClaudeProvider]
-        D3_2[agentx-node<br/>WebSocketBridge]
+        D3_1[agentx-runtime<br/>ClaudeProvider]
+        D3_2[agentx-runtime<br/>WebSocketBridge]
         D3_3[agentx-browser<br/>BrowserProvider]
         D3_1 --> D3_2 --> D3_3
     end
@@ -471,9 +471,9 @@ mindmap
         日志接口
 
     平台层
-      packages/agentx-node/src/ClaudeAgentProvider.ts
+      packages/agentx-runtime/src/ClaudeAgentProvider.ts
         Claude SDK 适配
-      packages/agentx-node/src/WebSocketBridge.ts
+      packages/agentx-runtime/src/WebSocketBridge.ts
         自动转发逻辑
       packages/agentx-browser/src/BrowserProvider.ts
         浏览器端实现

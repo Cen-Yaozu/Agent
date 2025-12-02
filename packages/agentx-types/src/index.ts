@@ -57,7 +57,7 @@
 // ============================================================================
 
 // Agent state
-export type { AgentState } from "./AgentState";
+export type { AgentState } from "./agent/AgentState";
 
 // User types
 export * from "./user";

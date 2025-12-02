@@ -30,7 +30,7 @@ AgentX 是一个 **AI Agent 运行时框架**，将 Docker 风格的生命周期
 
 ```typescript
 import { defineAgent, createAgentX } from "@deepractice-ai/agentx";
-import { runtime } from "@deepractice-ai/agentx-node";
+import { runtime } from "@deepractice-ai/agentx-runtime";
 
 // 1. 定义你的 Agent（类似 Dockerfile）
 const TranslatorAgent = defineAgent({
@@ -161,7 +161,7 @@ Driver.receive()
 npm install @deepractice-ai/agentx
 
 # Node.js 运行时（Server）
-npm install @deepractice-ai/agentx-node
+npm install @deepractice-ai/agentx-runtime
 
 # React UI 组件（可选）
 npm install @deepractice-ai/agentx-ui
@@ -175,7 +175,7 @@ npm install @deepractice-ai/agentx-ui
 
 ```typescript
 import { defineAgent, createAgentX } from "@deepractice-ai/agentx";
-import { runtime } from "@deepractice-ai/agentx-node";
+import { runtime } from "@deepractice-ai/agentx-runtime";
 
 const agentx = createAgentX(runtime);
 
@@ -274,16 +274,16 @@ agent.react({
 
 ## 包列表
 
-| 包                              | 说明                                          |
-| ------------------------------- | --------------------------------------------- |
-| `@deepractice-ai/agentx-types`  | 类型定义（140+ 文件，零依赖）                 |
-| `@deepractice-ai/agentx-adk`    | Agent 开发工具包（defineAgent, defineDriver） |
-| `@deepractice-ai/agentx-logger` | SLF4J 风格日志门面                            |
-| `@deepractice-ai/agentx-engine` | Mealy Machine 事件处理器                      |
-| `@deepractice-ai/agentx-agent`  | Agent 运行时核心                              |
-| `@deepractice-ai/agentx`        | 平台 API（统一入口）                          |
-| `@deepractice-ai/agentx-node`   | Node.js 运行时（Claude 驱动, SQLite）         |
-| `@deepractice-ai/agentx-ui`     | React UI 组件                                 |
+| 包                               | 说明                                          |
+| -------------------------------- | --------------------------------------------- |
+| `@deepractice-ai/agentx-types`   | 类型定义（140+ 文件，零依赖）                 |
+| `@deepractice-ai/agentx-adk`     | Agent 开发工具包（defineAgent, defineDriver） |
+| `@deepractice-ai/agentx-logger`  | SLF4J 风格日志门面                            |
+| `@deepractice-ai/agentx-engine`  | Mealy Machine 事件处理器                      |
+| `@deepractice-ai/agentx-agent`   | Agent 运行时核心                              |
+| `@deepractice-ai/agentx`         | 平台 API（统一入口）                          |
+| `@deepractice-ai/agentx-runtime` | Node.js 运行时（Claude 驱动, SQLite）         |
+| `@deepractice-ai/agentx-ui`      | React UI 组件                                 |
 
 ---
 

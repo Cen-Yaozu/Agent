@@ -11,7 +11,7 @@
  *
  * @example
  * ```typescript
- * // Local implementation (agentx-node)
+ * // Local implementation (agentx-runtime)
  * const repository = new SQLiteRepository(dbPath);
  *
  * // Remote implementation (agentx browser)

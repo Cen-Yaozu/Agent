@@ -524,7 +524,7 @@ agentx-agent (Agent runtime)
      ↑
 agentx (Platform API + defineAgent)
      ↑
-agentx-node (NodeRuntime + ClaudeDriver)
+agentx-runtime (NodeRuntime + ClaudeDriver)
      ↑
 agentx-ui (React components)
 ```

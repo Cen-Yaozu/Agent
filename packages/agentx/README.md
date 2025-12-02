@@ -71,7 +71,7 @@ The main entry point for creating AgentX instances.
 
 ```typescript
 import { defineAgent, createAgentX } from "@deepractice-ai/agentx";
-import { runtime } from "@deepractice-ai/agentx-node";
+import { runtime } from "@deepractice-ai/agentx-runtime";
 
 // 1. Define agent (business config only)
 const MyAgent = defineAgent({
@@ -392,7 +392,7 @@ agentx-agent (Agent runtime)
      ↑
 agentx (this package) ← Platform API + defineAgent
      ↑
-agentx-node (NodeRuntime + ClaudeDriver)
+agentx-runtime (NodeRuntime + ClaudeDriver)
      ↑
 agentx-ui (React components)
 ```
@@ -401,14 +401,14 @@ agentx-ui (React components)
 
 ## Related Packages
 
-| Package                                           | Description                |
-| ------------------------------------------------- | -------------------------- |
-| [@deepractice-ai/agentx-types](../agentx-types)   | Type definitions           |
-| [@deepractice-ai/agentx-agent](../agentx-agent)   | Agent runtime              |
-| [@deepractice-ai/agentx-engine](../agentx-engine) | Event processing engine    |
-| [@deepractice-ai/agentx-node](../agentx-node)     | NodeRuntime + ClaudeDriver |
-| [@deepractice-ai/agentx-logger](../agentx-logger) | Logging facade             |
-| [@deepractice-ai/agentx-ui](../agentx-ui)         | React components           |
+| Package                                             | Description                |
+| --------------------------------------------------- | -------------------------- |
+| [@deepractice-ai/agentx-types](../agentx-types)     | Type definitions           |
+| [@deepractice-ai/agentx-agent](../agentx-agent)     | Agent runtime              |
+| [@deepractice-ai/agentx-engine](../agentx-engine)   | Event processing engine    |
+| [@deepractice-ai/agentx-runtime](../agentx-runtime) | NodeRuntime + ClaudeDriver |
+| [@deepractice-ai/agentx-logger](../agentx-logger)   | Logging facade             |
+| [@deepractice-ai/agentx-ui](../agentx-ui)           | React components           |
 
 ---
 

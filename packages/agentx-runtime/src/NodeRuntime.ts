@@ -26,7 +26,7 @@ import type {
 import { AgentInstance } from "@deepractice-ai/agentx-agent";
 import { AgentEngine } from "@deepractice-ai/agentx-engine";
 import { createLogger, setLoggerFactory } from "@deepractice-ai/agentx-common";
-import { createClaudeDriver, type ClaudeDriverOptions } from "./ClaudeDriver";
+import { createClaudeDriver, type ClaudeDriverOptions } from "./driver/ClaudeDriver";
 import { SQLiteRepository } from "./repository";
 import { FileLoggerFactory } from "./logger";
 import { EnvLLMProvider, type LLMSupply } from "./llm";
@@ -373,7 +373,7 @@ class NodeRuntime implements Runtime {
  *
  * @example
  * ```typescript
- * import { runtime } from "@deepractice-ai/agentx-node";
+ * import { runtime } from "@deepractice-ai/agentx-runtime";
  * import { createAgentX } from "@deepractice-ai/agentx";
  * import { defineAgent } from "@deepractice-ai/agentx";
  *

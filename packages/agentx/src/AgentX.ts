@@ -7,7 +7,7 @@
  * @example
  * ```typescript
  * import { createAgentX } from "@deepractice-ai/agentx";
- * import { runtime } from "@deepractice-ai/agentx-node";
+ * import { runtime } from "@deepractice-ai/agentx-runtime";
  *
  * const agentx = createAgentX(runtime);
  * const agent = agentx.agents.create(definition, { apiKey: "xxx" });
@@ -56,7 +56,7 @@ class ProviderRegistry {
  * @example
  * ```typescript
  * import { createAgentX } from "@deepractice-ai/agentx";
- * import { runtime } from "@deepractice-ai/agentx-node";
+ * import { runtime } from "@deepractice-ai/agentx-runtime";
  *
  * const agentx = createAgentX(runtime);
  * const agent = agentx.agents.create(definition, { apiKey: "xxx" });

@@ -152,7 +152,7 @@ agentx.agents.run(imageId); // 已有
 - [x] `agentx/src/managers/definition/DefinitionManagerImpl.ts` - 内存实现
 - [x] `agentx/src/managers/image/ImageManagerImpl.ts` - 基于 Repository
 - [x] `agentx/src/AgentX.ts` - 集成新管理器
-- [x] `agentx-node/src/repository/SQLiteRepository.ts` - Schema 更新
+- [x] `agentx-runtime/src/repository/SQLiteRepository.ts` - Schema 更新
 
 ### Phase 3: UI 调整 ✅
 
@@ -220,7 +220,7 @@ packages/agentx/src/
 │   └── index.ts            # 修改
 └── AgentX.ts               # 修改
 
-packages/agentx-node/src/repository/
+packages/agentx-runtime/src/repository/
 └── SQLiteRepository.ts     # 修改（schema + 方法）
 
 packages/agentx-ui/src/components/workspace/

@@ -18,7 +18,7 @@
  */
 
 import type { UserMessage } from "~/message";
-import type { AgentState } from "~/AgentState";
+import type { AgentState } from "~/agent/AgentState";
 import type { Sandbox } from "~/runtime/sandbox";
 import type { AgentDefinition } from "./AgentDefinition";
 import type { AgentContext } from "./AgentContext";

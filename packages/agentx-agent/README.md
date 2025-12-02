@@ -37,7 +37,7 @@ pnpm add @deepractice-ai/agentx-agent
 
 ```typescript
 import { createAgentX, defineAgent } from "@deepractice-ai/agentx";
-import { runtime } from "@deepractice-ai/agentx-node";
+import { runtime } from "@deepractice-ai/agentx-runtime";
 
 // 1. Define agent (business config only)
 const MyAgent = defineAgent({
@@ -168,7 +168,7 @@ createAgent()
 ## Related Packages
 
 - **[@deepractice-ai/agentx](../agentx)** - Platform API (defineAgent, createAgentX)
-- **[@deepractice-ai/agentx-node](../agentx-node)** - Node.js Runtime (NodeRuntime, ClaudeDriver)
+- **[@deepractice-ai/agentx-runtime](../agentx-runtime)** - Node.js Runtime (NodeRuntime, ClaudeDriver)
 - **[@deepractice-ai/agentx-engine](../agentx-engine)** - Stateless event processing engine
 - **[@deepractice-ai/agentx-types](../agentx-types)** - Type definitions
 
