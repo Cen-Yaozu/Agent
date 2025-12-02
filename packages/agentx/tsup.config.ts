@@ -18,6 +18,7 @@ export default defineConfig({
   splitting: false,
   treeshake: true,
   target: "es2020",
+  noExternal: ["@agentxjs/agent", "@agentxjs/common", "@agentxjs/engine"],
   esbuildOptions(options) {
     options.alias = {
       "~": path.resolve(__dirname, "./src"),

@@ -178,15 +178,6 @@ importers:
 
   packages/agentx:
     dependencies:
-      '@agentxjs/agent':
-        specifier: workspace:*
-        version: link:../agent
-      '@agentxjs/common':
-        specifier: workspace:*
-        version: link:../common
-      '@agentxjs/engine':
-        specifier: workspace:*
-        version: link:../engine
       '@agentxjs/types':
         specifier: workspace:*
         version: link:../types
@@ -197,6 +188,15 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
     devDependencies:
+      '@agentxjs/agent':
+        specifier: workspace:*
+        version: link:../agent
+      '@agentxjs/common':
+        specifier: workspace:*
+        version: link:../common
+      '@agentxjs/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@deepracticex/vitest-cucumber':
         specifier: ^1.4.3
         version: 1.4.3(vitest@3.2.4)
@@ -262,6 +262,22 @@ importers:
 
   packages/node-runtime:
     dependencies:
+      '@agentxjs/types':
+        specifier: workspace:*
+        version: link:../types
+      '@anthropic-ai/claude-agent-sdk':
+        specifier: ^0.1.30
+        version: 0.1.30(zod@4.1.12)
+      agentxjs:
+        specifier: workspace:*
+        version: link:../agentx
+      better-sqlite3:
+        specifier: ^11.7.0
+        version: 11.10.0
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
       '@agentxjs/agent':
         specifier: workspace:*
         version: link:../agent
@@ -271,19 +287,6 @@ importers:
       '@agentxjs/engine':
         specifier: workspace:*
         version: link:../engine
-      '@agentxjs/types':
-        specifier: workspace:*
-        version: link:../types
-      '@anthropic-ai/claude-agent-sdk':
-        specifier: ^0.1.30
-        version: 0.1.30(zod@4.1.12)
-      better-sqlite3:
-        specifier: ^11.7.0
-        version: 11.10.0
-      rxjs:
-        specifier: ^7.8.2
-        version: 7.8.2
-    devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.12
         version: 7.6.13

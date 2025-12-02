@@ -1,6 +1,6 @@
 {
   "name": "@agentxjs/portagent",
-  "version": "0.0.3",
+  "version": "0.0.7",
   "description": "Portagent - AgentX Portal Application",
   "license": "MIT",
   "repository": {
@@ -40,6 +40,7 @@
     "bcrypt": "^6.0.0",
     "better-sqlite3": "^11.10.0",
     "commander": "^12.1.0",
+    "dotenv": "^16.6.1",
     "hono": "^4.6.12",
     "jose": "^5.9.6",
     "react": "^18.3.1",
@@ -59,7 +60,6 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.0",
-    "dotenv": "^16.6.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^4.1.17",
     "tsup": "^8.3.5",

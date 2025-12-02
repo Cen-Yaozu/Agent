@@ -17,9 +17,6 @@ export default defineConfig({
     "agentxjs",
     "agentxjs-runtime",
     "@agentxjs/types",
-    // Don't bundle Node.js dependencies (CJS compatibility)
-    "dotenv",
-    "commander",
   ],
   esbuildOptions(options) {
     options.alias = {

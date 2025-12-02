@@ -1,6 +1,6 @@
 {
   "name": "@agentxjs/types",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "description": "Type definitions for AgentX ecosystem",
   "license": "MIT",
   "repository": {
@@ -37,7 +37,6 @@
     "deepractice"
   ],
   "author": "Deepractice AI",
-  "license": "MIT",
   "devDependencies": {
     "tsup": "^8.0.1",
     "typescript": "^5.3.3"

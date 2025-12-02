@@ -1,0 +1,16 @@
+# @agentxjs/engine
+
+## 0.1.2
+
+### Patch Changes
+
+- @agentxjs/types@0.0.5
+- @agentxjs/common@0.1.2
+
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [b206fda]
+  - @agentxjs/types@0.0.4
+  - @agentxjs/common@0.1.1
