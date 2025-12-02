@@ -65,4 +65,42 @@ export interface Runtime {
    * @returns Logger instance
    */
   createLogger(name: string): Logger;
+
+  /**
+   * Agent ID resolver for remote runtimes
+   *
+   * For local runtimes (Node.js): undefined, ContainerManager generates local ID.
+   * For remote runtimes (SSE): provided to call server API and get server's agent ID.
+   */
+  readonly agentIdResolver?: AgentIdResolver;
+}
+
+/**
+ * AgentIdResolver - Resolves agent ID from remote server
+ *
+ * Used by SSERuntime to call server API before creating local agent.
+ * This ensures browser and server use the same agentId.
+ */
+export interface AgentIdResolver {
+  /**
+   * Resolve agent ID for running an image
+   *
+   * Calls server POST /images/:imageId/run
+   *
+   * @param imageId - Image to run
+   * @param containerId - Container for isolation
+   * @returns Agent ID from server
+   */
+  resolveForRun(imageId: string, containerId: string): Promise<string>;
+
+  /**
+   * Resolve agent ID for resuming a session
+   *
+   * Calls server POST /sessions/:sessionId/resume
+   *
+   * @param sessionId - Session to resume
+   * @param containerId - Container for isolation
+   * @returns Agent ID from server
+   */
+  resolveForResume(sessionId: string, containerId: string): Promise<string>;
 }

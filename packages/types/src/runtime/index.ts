@@ -61,7 +61,7 @@
  */
 
 // Runtime interface - unified infrastructure entry point
-export type { Runtime } from "./Runtime";
+export type { Runtime, AgentIdResolver } from "./Runtime";
 
 // RuntimeDriver - Driver + Sandbox combination
 export type { RuntimeDriver } from "~/runtime/container/driver/RuntimeDriver";

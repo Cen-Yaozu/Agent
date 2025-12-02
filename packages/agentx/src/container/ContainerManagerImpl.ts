@@ -115,8 +115,13 @@ export class ContainerManagerImpl implements ContainerManager {
       throw new Error(`Container not found: ${containerId}`);
     }
 
-    // Generate agent ID
-    const agentId = generateAgentId();
+    // Resolve agent ID (local or from server depending on Runtime)
+    let agentId: string;
+    if (this.runtime.agentIdResolver) {
+      agentId = await this.runtime.agentIdResolver.resolveForRun(image.imageId, containerId);
+    } else {
+      agentId = generateAgentId();
+    }
 
     // Create context
     const context: AgentContext = {
@@ -165,8 +170,13 @@ export class ContainerManagerImpl implements ContainerManager {
       throw new Error(`Image not found: ${session.imageId}`);
     }
 
-    // Generate agent ID
-    const agentId = generateAgentId();
+    // Resolve agent ID (local or from server depending on Runtime)
+    let agentId: string;
+    if (this.runtime.agentIdResolver) {
+      agentId = await this.runtime.agentIdResolver.resolveForResume(session.sessionId, containerId);
+    } else {
+      agentId = generateAgentId();
+    }
 
     // Create context
     const context: AgentContext = {

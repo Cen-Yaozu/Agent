@@ -1,28 +1,95 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 
+/**
+ * User information
+ */
+export interface UserInfo {
+  userId: string;
+  username: string;
+  email: string;
+  containerId: string;
+  displayName?: string;
+  avatar?: string;
+}
+
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   token: string | null;
-  userId: string | null;
-  login: (password: string) => Promise<boolean>;
+  user: UserInfo | null;
+  login: (
+    usernameOrEmail: string,
+    password: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  register: (
+    username: string,
+    email: string,
+    password: string,
+    displayName?: string
+  ) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const TOKEN_KEY = "portagent_token";
-const USER_ID_KEY = "portagent_user_id";
+const USER_KEY = "portagent_user";
 
 /**
  * Auth API client
  */
-async function loginApi(password: string): Promise<{ token: string; userId: string } | null> {
+async function loginApi(
+  usernameOrEmail: string,
+  password: string
+): Promise<{ token: string; user: UserInfo } | { error: string }> {
   try {
     const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ usernameOrEmail, password }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { error: data.error || "Login failed" };
+    }
+
+    return { token: data.token, user: data.user };
+  } catch {
+    return { error: "Network error" };
+  }
+}
+
+async function registerApi(
+  username: string,
+  email: string,
+  password: string,
+  displayName?: string
+): Promise<{ token: string; user: UserInfo } | { error: string }> {
+  try {
+    const response = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, email, password, displayName }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { error: data.error || "Registration failed" };
+    }
+
+    return { token: data.token, user: data.user };
+  } catch {
+    return { error: "Network error" };
+  }
+}
+
+async function verifyApi(token: string): Promise<UserInfo | null> {
+  try {
+    const response = await fetch("/api/auth/verify", {
+      headers: { Authorization: `Bearer ${token}` },
     });
 
     if (!response.ok) {
@@ -30,20 +97,9 @@ async function loginApi(password: string): Promise<{ token: string; userId: stri
     }
 
     const data = await response.json();
-    return { token: data.token, userId: data.userId };
+    return data.user;
   } catch {
     return null;
-  }
-}
-
-async function verifyApi(token: string): Promise<boolean> {
-  try {
-    const response = await fetch("/api/auth/verify", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return response.ok;
-  } catch {
-    return false;
   }
 }
 
@@ -52,50 +108,84 @@ async function verifyApi(token: string): Promise<boolean> {
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Check stored token on mount
   useEffect(() => {
     const storedToken = localStorage.getItem(TOKEN_KEY);
-    const storedUserId = localStorage.getItem(USER_ID_KEY);
+    const storedUserJson = localStorage.getItem(USER_KEY);
 
-    if (storedToken) {
-      // Verify token is still valid
-      verifyApi(storedToken).then((valid) => {
-        if (valid) {
-          setToken(storedToken);
-          setUserId(storedUserId);
-        } else {
-          localStorage.removeItem(TOKEN_KEY);
-          localStorage.removeItem(USER_ID_KEY);
-        }
+    if (storedToken && storedUserJson) {
+      try {
+        // Verify token is still valid
+        verifyApi(storedToken).then((verifiedUser) => {
+          if (verifiedUser) {
+            setToken(storedToken);
+            setUser(verifiedUser); // Use verified user from server
+          } else {
+            localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(USER_KEY);
+          }
+          setIsLoading(false);
+        });
+      } catch {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
         setIsLoading(false);
-      });
+      }
     } else {
       setIsLoading(false);
     }
   }, []);
 
-  const login = useCallback(async (password: string): Promise<boolean> => {
-    const result = await loginApi(password);
+  const login = useCallback(
+    async (
+      usernameOrEmail: string,
+      password: string
+    ): Promise<{ success: boolean; error?: string }> => {
+      const result = await loginApi(usernameOrEmail, password);
 
-    if (result) {
-      localStorage.setItem(TOKEN_KEY, result.token);
-      localStorage.setItem(USER_ID_KEY, result.userId);
-      setToken(result.token);
-      setUserId(result.userId);
-      return true;
-    }
+      if ("token" in result) {
+        localStorage.setItem(TOKEN_KEY, result.token);
+        localStorage.setItem(USER_KEY, JSON.stringify(result.user));
+        setToken(result.token);
+        setUser(result.user);
+        return { success: true };
+      }
 
-    return false;
-  }, []);
+      return { success: false, error: result.error };
+    },
+    []
+  );
+
+  const register = useCallback(
+    async (
+      username: string,
+      email: string,
+      password: string,
+      displayName?: string
+    ): Promise<{ success: boolean; error?: string }> => {
+      const result = await registerApi(username, email, password, displayName);
+
+      if ("token" in result) {
+        localStorage.setItem(TOKEN_KEY, result.token);
+        localStorage.setItem(USER_KEY, JSON.stringify(result.user));
+        setToken(result.token);
+        setUser(result.user);
+        return { success: true };
+      }
+
+      return { success: false, error: result.error };
+    },
+    []
+  );
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_ID_KEY);
+    localStorage.removeItem(USER_KEY);
     setToken(null);
-    setUserId(null);
+    setUser(null);
   }, []);
 
   return (
@@ -104,8 +194,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!token,
         isLoading,
         token,
-        userId,
+        user,
         login,
+        register,
         logout,
       }}
     >

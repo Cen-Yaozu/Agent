@@ -275,6 +275,9 @@ export function createAgentXHandler(
       if (method === "GET") {
         return { type: "get_container", containerId };
       }
+      if (method === "PUT") {
+        return { type: "save_container", containerId };
+      }
       if (method === "DELETE") {
         return { type: "delete_container", containerId };
       }
@@ -657,9 +660,18 @@ export function createAgentXHandler(
    * Run agent from image (Docker-style: docker run <image>)
    * POST /images/:imageId/run
    */
-  async function handleRunImage(imageId: string): Promise<Response> {
+  async function handleRunImage(imageId: string, request: Request): Promise<Response> {
+    // Parse optional containerId from request body
+    let containerId: string | undefined;
+    try {
+      const body = (await request.json()) as { containerId?: string };
+      containerId = body.containerId;
+    } catch {
+      // No body or invalid JSON - use default container
+    }
+
     // Run agent from image via Container
-    const agent = await agentx.images.run(imageId);
+    const agent = await agentx.images.run(imageId, { containerId });
 
     const response: CreateAgentResponse = {
       agentId: agent.agentId,
@@ -740,15 +752,24 @@ export function createAgentXHandler(
    * Resume agent from session
    * POST /sessions/:sessionId/resume
    */
-  async function handleResumeSession(sessionId: string): Promise<Response> {
+  async function handleResumeSession(sessionId: string, request: Request): Promise<Response> {
     // Get session from repository
     const session = await agentx.sessions.get(sessionId);
     if (!session) {
       return errorResponse("INVALID_REQUEST", `Session ${sessionId} not found`, 404);
     }
 
+    // Parse optional containerId from request body
+    let containerId: string | undefined;
+    try {
+      const body = (await request.json()) as { containerId?: string };
+      containerId = body.containerId;
+    } catch {
+      // No body or invalid JSON - use default container
+    }
+
     // Resume agent via Container
-    const agent = await session.resume();
+    const agent = await session.resume({ containerId });
 
     const response: CreateAgentResponse = {
       agentId: agent.agentId,
@@ -845,6 +866,18 @@ export function createAgentXHandler(
     return new Response(null, { status: exists ? 200 : 404 });
   }
 
+  async function handleSaveContainer(containerId: string, request: Request): Promise<Response> {
+    const repo = getRepository();
+    let body: ContainerRecord;
+    try {
+      body = (await request.json()) as ContainerRecord;
+    } catch {
+      return errorResponse("INVALID_REQUEST", "Invalid JSON body", 400);
+    }
+    await repo.saveContainer({ ...body, containerId });
+    return new Response(null, { status: 204 });
+  }
+
   // ============================================================================
   // Main Handler
   // ============================================================================
@@ -904,7 +937,7 @@ export function createAgentXHandler(
         case "delete_image_sessions":
           return handleDeleteImageSessions(parsed.imageId!);
         case "run_image":
-          return handleRunImage(parsed.imageId!);
+          return handleRunImage(parsed.imageId!, request);
 
         // Sessions
         case "list_sessions":
@@ -924,7 +957,7 @@ export function createAgentXHandler(
         case "count_session_messages":
           return handleCountSessionMessages(parsed.sessionId!);
         case "resume_session":
-          return handleResumeSession(parsed.sessionId!);
+          return handleResumeSession(parsed.sessionId!, request);
 
         // Users
         case "list_user_sessions":
@@ -945,6 +978,8 @@ export function createAgentXHandler(
           return handleCreateContainer(request);
         case "get_container":
           return handleGetContainer(parsed.containerId!);
+        case "save_container":
+          return handleSaveContainer(parsed.containerId!, request);
         case "delete_container":
           return handleDeleteContainer(parsed.containerId!);
         case "head_container":

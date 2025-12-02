@@ -1,11 +1,12 @@
-import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, type FormEvent } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
 /**
  * Login Page
  */
 export function LoginPage() {
+  const [usernameOrEmail, setUsernameOrEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -13,22 +14,23 @@ export function LoginPage() {
   const navigate = useNavigate();
 
   // Redirect if already authenticated
-  if (isAuthenticated) {
-    navigate("/workspace", { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/workspace", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
 
-    const success = await login(password);
+    const result = await login(usernameOrEmail, password);
 
-    if (success) {
+    if (result.success) {
       navigate("/workspace", { replace: true });
     } else {
-      setError("Invalid password");
+      setError(result.error || "Login failed");
       setIsLoading(false);
     }
   };
@@ -46,6 +48,25 @@ export function LoginPage() {
         <div className="bg-card rounded-lg p-8 shadow-xl border border-border">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
+              <label
+                htmlFor="usernameOrEmail"
+                className="block text-sm font-medium text-foreground mb-2"
+              >
+                Username or Email
+              </label>
+              <input
+                id="usernameOrEmail"
+                type="text"
+                value={usernameOrEmail}
+                onChange={(e) => setUsernameOrEmail(e.target.value)}
+                placeholder="Enter your username or email"
+                className="w-full px-4 py-3 bg-muted border border-input rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                autoFocus
+                required
+              />
+            </div>
+
+            <div>
               <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
                 Password
               </label>
@@ -56,7 +77,6 @@ export function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 className="w-full px-4 py-3 bg-muted border border-input rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                autoFocus
                 required
               />
             </div>
@@ -65,7 +85,7 @@ export function LoginPage() {
 
             <button
               type="submit"
-              disabled={isLoading || !password}
+              disabled={isLoading || !usernameOrEmail || !password}
               className="w-full py-3 px-4 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed text-primary-foreground font-medium rounded-lg transition-colors"
             >
               {isLoading ? "Signing in..." : "Sign In"}
@@ -74,9 +94,10 @@ export function LoginPage() {
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             <p>
-              Password is set via{" "}
-              <code className="text-foreground bg-muted px-1 rounded">PORTAGENT_PASSWORD</code>{" "}
-              environment variable
+              Don't have an account?{" "}
+              <Link to="/register" className="text-primary hover:underline">
+                Sign up
+              </Link>
             </p>
           </div>
         </div>

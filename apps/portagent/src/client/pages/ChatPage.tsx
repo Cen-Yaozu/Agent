@@ -84,7 +84,7 @@ function Header({ onLogout }: { onLogout: () => void }) {
  * Chat Page component
  */
 export function ChatPage() {
-  const { userId, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [agentx, setAgentx] = useState<AgentX | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(true);
@@ -163,7 +163,7 @@ export function ChatPage() {
     return <ErrorScreen message={error} onRetry={handleRetry} />;
   }
 
-  if (!agentx || !userId) {
+  if (!agentx || !user) {
     return <ErrorScreen message="Failed to initialize" onRetry={handleRetry} />;
   }
 
@@ -171,7 +171,12 @@ export function ChatPage() {
     <div className="h-screen flex flex-col bg-background">
       <Header onLogout={logout} />
       <div className="flex-1 overflow-hidden">
-        <Workspace agentx={agentx} userId={userId} definitions={definitions} />
+        <Workspace
+          agentx={agentx}
+          userId={user.userId}
+          containerId={user.containerId}
+          definitions={definitions}
+        />
       </div>
     </div>
   );

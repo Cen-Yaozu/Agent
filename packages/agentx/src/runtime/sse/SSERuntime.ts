@@ -40,11 +40,13 @@ import type {
   Repository,
   LoggerFactory,
   Logger,
+  AgentIdResolver,
 } from "@agentxjs/types";
 import { setLoggerFactory } from "@agentxjs/common";
 import { createSSEDriver } from "./SSEDriver";
 import { RemoteRepository } from "./repository";
 import { BrowserLoggerFactory } from "./logger";
+import { RemoteAgentIdResolver } from "./RemoteAgentIdResolver";
 
 // ============================================================================
 // NoopSandbox - Browser doesn't need local resources
@@ -113,6 +115,7 @@ class SSERuntime implements Runtime {
   readonly name = "sse";
   readonly repository: Repository;
   readonly loggerFactory: LoggerFactory;
+  readonly agentIdResolver: AgentIdResolver;
 
   private readonly serverUrl: string;
   private readonly headers: Record<string, string>;
@@ -132,6 +135,12 @@ class SSERuntime implements Runtime {
     setLoggerFactory(this.loggerFactory);
 
     this.repository = new RemoteRepository({
+      serverUrl: this.serverUrl,
+      headers: this.headers,
+    });
+
+    // Create agent ID resolver for remote agent creation
+    this.agentIdResolver = new RemoteAgentIdResolver({
       serverUrl: this.serverUrl,
       headers: this.headers,
     });

@@ -1,16 +1,18 @@
 /**
  * Authentication Module
  *
- * Simple password-based authentication with JWT tokens.
- * Single user mode for MVP.
+ * Multi-user authentication with JWT tokens.
+ * Supports user registration and login.
  */
 
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import * as jose from "jose";
+import type { AgentX } from "agentxjs";
+import type { UserRepository } from "./user/UserRepository";
+import type { UserInfo } from "./user/types";
 
 const TOKEN_EXPIRY = "7d"; // 7 days
-const DEFAULT_USER_ID = "default";
 
 /**
  * Generate a random password
@@ -51,30 +53,128 @@ async function verifyToken(secret: string, token: string): Promise<{ userId: str
 }
 
 /**
+ * Convert UserRecord to safe UserInfo (remove password hash)
+ */
+function toUserInfo(user: {
+  userId: string;
+  username: string;
+  email: string;
+  containerId: string;
+  displayName?: string;
+  avatar?: string;
+  createdAt: number;
+}): UserInfo {
+  return {
+    userId: user.userId,
+    username: user.username,
+    email: user.email,
+    containerId: user.containerId,
+    displayName: user.displayName,
+    avatar: user.avatar,
+    createdAt: user.createdAt,
+  };
+}
+
+/**
  * Auth routes
  */
-export function authRoutes(password: string, jwtSecret: string): Hono {
+export function authRoutes(
+  userRepository: UserRepository,
+  jwtSecret: string,
+  agentx: AgentX
+): Hono {
   const app = new Hono();
+
+  // Register
+  app.post("/register", async (c) => {
+    try {
+      const body = await c.req.json<{
+        username?: string;
+        email?: string;
+        password?: string;
+        displayName?: string;
+        avatar?: string;
+      }>();
+
+      // Validation
+      if (!body.username || !body.email || !body.password) {
+        return c.json({ error: "Username, email, and password are required" }, 400);
+      }
+
+      // Basic validation
+      if (body.username.length < 3) {
+        return c.json({ error: "Username must be at least 3 characters" }, 400);
+      }
+
+      if (body.password.length < 6) {
+        return c.json({ error: "Password must be at least 6 characters" }, 400);
+      }
+
+      if (!body.email.includes("@")) {
+        return c.json({ error: "Invalid email format" }, 400);
+      }
+
+      // Create Container for the user first
+      const container = await agentx.containers.create();
+
+      // Create user with the container ID
+      const user = await userRepository.createUser({
+        username: body.username,
+        email: body.email,
+        password: body.password,
+        containerId: container.containerId,
+        displayName: body.displayName,
+        avatar: body.avatar,
+      });
+
+      // Generate token
+      const token = await createToken(jwtSecret, user.userId);
+
+      return c.json(
+        {
+          token,
+          user: toUserInfo(user),
+          expiresIn: TOKEN_EXPIRY,
+        },
+        201
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Registration failed";
+      return c.json({ error: message }, 400);
+    }
+  });
 
   // Login
   app.post("/login", async (c) => {
-    const body = await c.req.json<{ password?: string }>();
+    try {
+      const body = await c.req.json<{
+        usernameOrEmail?: string;
+        password?: string;
+      }>();
 
-    if (!body.password) {
-      return c.json({ error: "Password required" }, 400);
+      if (!body.usernameOrEmail || !body.password) {
+        return c.json({ error: "Username/email and password are required" }, 400);
+      }
+
+      // Verify credentials
+      const user = await userRepository.verifyPassword(body.usernameOrEmail, body.password);
+
+      if (!user) {
+        return c.json({ error: "Invalid credentials" }, 401);
+      }
+
+      // Generate token
+      const token = await createToken(jwtSecret, user.userId);
+
+      return c.json({
+        token,
+        user: toUserInfo(user),
+        expiresIn: TOKEN_EXPIRY,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Login failed";
+      return c.json({ error: message }, 500);
     }
-
-    if (body.password !== password) {
-      return c.json({ error: "Invalid password" }, 401);
-    }
-
-    const token = await createToken(jwtSecret, DEFAULT_USER_ID);
-
-    return c.json({
-      token,
-      userId: DEFAULT_USER_ID,
-      expiresIn: TOKEN_EXPIRY,
-    });
   });
 
   // Verify token
@@ -91,7 +191,13 @@ export function authRoutes(password: string, jwtSecret: string): Hono {
       return c.json({ valid: false }, 401);
     }
 
-    return c.json({ valid: true, userId: result.userId });
+    // Get user info
+    const user = await userRepository.findUserById(result.userId);
+    if (!user || !user.isActive) {
+      return c.json({ valid: false }, 401);
+    }
+
+    return c.json({ valid: true, user: toUserInfo(user) });
   });
 
   // Logout (client-side only, just for API consistency)
@@ -133,6 +239,9 @@ export function createAuthMiddleware(jwtSecret: string) {
 
     // Set user info in context
     c.set("userId", result.userId);
+
+    // Also set as custom header for downstream handlers
+    c.header("X-User-Id", result.userId);
 
     await next();
   });

@@ -269,6 +269,7 @@ export type RequestType =
   | "list_containers" // GET /containers
   | "create_container" // POST /containers
   | "get_container" // GET /containers/:containerId
+  | "save_container" // PUT /containers/:containerId
   | "delete_container" // DELETE /containers/:containerId
   | "head_container" // HEAD /containers/:containerId
   // Not found

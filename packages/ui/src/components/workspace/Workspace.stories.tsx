@@ -180,6 +180,7 @@ function FullWorkspaceComponent() {
       <Workspace
         agentx={agentx}
         userId="user_storybook"
+        containerId="container_storybook"
         definitions={definitions}
         onSessionChange={(session) => console.log("Session changed:", session?.sessionId)}
         onDefinitionChange={(def) => console.log("Definition changed:", def?.name)}

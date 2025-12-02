@@ -28,7 +28,7 @@
  * ```
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Allotment } from "allotment";
 import "allotment/dist/style.css";
 
@@ -56,6 +56,12 @@ export interface WorkspaceProps {
    * Current user ID
    */
   userId: string;
+
+  /**
+   * User's dedicated Container ID
+   * All agent operations will use this container
+   */
+  containerId: string;
 
   /**
    * Available agent definitions
@@ -89,6 +95,7 @@ export interface WorkspaceProps {
 export function Workspace({
   agentx,
   userId,
+  containerId,
   definitions,
   onSessionChange,
   onDefinitionChange,
@@ -116,7 +123,8 @@ export function Workspace({
   // ===== Agent Instance Management =====
   const [agent, setAgent] = useState<Agent | null>(null);
   const [historyMessages, setHistoryMessages] = useState<Message[]>([]);
-  const [justCreatedSessionId, setJustCreatedSessionId] = useState<string | null>(null);
+  // Use ref to avoid triggering effect when clearing the flag
+  const justCreatedSessionIdRef = useRef<string | null>(null);
 
   // Resume agent when session is selected (for existing sessions)
   // New sessions are handled by handleCreateSession with run() instead
@@ -128,8 +136,8 @@ export function Workspace({
     }
 
     // Skip if this session was just created (already has agent via run())
-    if (currentSession.sessionId === justCreatedSessionId) {
-      setJustCreatedSessionId(null);
+    if (currentSession.sessionId === justCreatedSessionIdRef.current) {
+      justCreatedSessionIdRef.current = null;
       return;
     }
 
@@ -144,8 +152,8 @@ export function Workspace({
             const history = await session.getMessages();
             setHistoryMessages(history);
 
-            // Then resume agent (which auto-collects new messages)
-            const newAgent = await session.resume();
+            // Then resume agent using user's container (which auto-collects new messages)
+            const newAgent = await session.resume({ containerId });
             setAgent(newAgent);
           }
         }
@@ -162,7 +170,7 @@ export function Workspace({
         agent.destroy?.().catch(console.error);
       }
     };
-  }, [currentSession?.sessionId, justCreatedSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentSession?.sessionId, containerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ===== Agent State (maps to agentx.agents) =====
   const {
@@ -213,8 +221,8 @@ export function Workspace({
     if (!newSession) return;
 
     // For new session, use run() instead of resume()
-    // run() creates a fresh agent from the image
-    const newAgent = await agentx.images.run(metaImage.imageId);
+    // run() creates a fresh agent from the image, using user's container
+    const newAgent = await agentx.images.run(metaImage.imageId, { containerId });
 
     // Get session object and collect messages
     const session = await agentx.sessions.get(newSession.sessionId);
@@ -223,10 +231,10 @@ export function Workspace({
     }
 
     // Set agent directly and mark this session as just created (skip resume)
-    setJustCreatedSessionId(newSession.sessionId);
+    justCreatedSessionIdRef.current = newSession.sessionId;
     setHistoryMessages([]); // New session has no history
     setAgent(newAgent);
-  }, [agentx, currentDefinition, createSession, sessions.length]);
+  }, [agentx, currentDefinition, containerId, createSession, sessions.length]);
 
   const handleDeleteSession = useCallback(
     async (sessionId: string) => {
