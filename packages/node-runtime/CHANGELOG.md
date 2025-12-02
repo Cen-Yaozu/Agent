@@ -1,5 +1,14 @@
 # @agentxjs/node-runtime
 
+## 0.0.9
+
+### Patch Changes
+
+- Auto-create parent directory for SQLite database file
+  - agentxjs@0.0.9
+  - @agentxjs/common@0.0.9
+  - @agentxjs/types@0.0.9
+
 ## 0.0.6
 
 ### Patch Changes

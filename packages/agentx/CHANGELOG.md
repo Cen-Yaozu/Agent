@@ -1,5 +1,12 @@
 # agentxjs
 
+## 0.0.9
+
+### Patch Changes
+
+- @agentxjs/common@0.0.9
+- @agentxjs/types@0.0.9
+
 ## 0.0.6
 
 ### Patch Changes

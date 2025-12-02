@@ -1,5 +1,15 @@
 # @agentxjs/portagent
 
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies
+  - @agentxjs/node-runtime@0.0.9
+  - @agentxjs/ui@0.0.9
+  - agentxjs@0.0.9
+  - @agentxjs/types@0.0.9
+
 ## 0.0.8
 
 ### Patch Changes

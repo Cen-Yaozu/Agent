@@ -17,6 +17,8 @@
  */
 
 import Database from "better-sqlite3";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import type {
   Repository,
   ContainerRecord,
@@ -51,6 +53,10 @@ export class SQLiteRepository implements Repository {
   private definitions = new Map<string, DefinitionRecord>();
 
   constructor(dbPath: string = ":memory:") {
+    // Ensure parent directory exists (skip for in-memory database)
+    if (dbPath !== ":memory:") {
+      mkdirSync(dirname(dbPath), { recursive: true });
+    }
     this.db = new Database(dbPath);
     this.initSchema();
   }
