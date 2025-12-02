@@ -1,7 +1,13 @@
 {
   "name": "agentxjs",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Define, Run, Scale AI Agents - The Open Source Agent Platform",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Deepractice/AgentX.git"
+  },
+  "homepage": "https://github.com/Deepractice/AgentX",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

@@ -1,7 +1,13 @@
 {
   "name": "@agentxjs/portagent",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Portagent - AgentX Portal Application",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Deepractice/AgentX.git"
+  },
+  "homepage": "https://github.com/Deepractice/AgentX",
   "type": "module",
   "bin": {
     "portagent": "./bin/portagent.js"
@@ -10,6 +16,7 @@
   "files": [
     "dist",
     "bin",
+    "LICENSE",
     "README.md"
   ],
   "scripts": {

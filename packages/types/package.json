@@ -1,7 +1,13 @@
 {
   "name": "@agentxjs/types",
-  "version": "0.0.2",
-  "description": "Type definitions for Deepractice AgentX ecosystem",
+  "version": "0.0.3",
+  "description": "Type definitions for AgentX ecosystem",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Deepractice/AgentX.git"
+  },
+  "homepage": "https://github.com/Deepractice/AgentX",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
