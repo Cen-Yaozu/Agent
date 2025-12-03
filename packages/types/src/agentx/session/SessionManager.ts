@@ -25,7 +25,7 @@
  * ```
  */
 
-import type { Session } from "~/environment/session/Session";
+import type { Session } from "~/session/Session";
 
 /**
  * Session management interface

@@ -20,7 +20,11 @@ import type {
   LLMProvider,
   Logger,
   LoggerFactory,
+  AnyRuntimeEvent,
+  Unsubscribe,
+  EcosystemEventHandler,
 } from "@agentxjs/types";
+import { Subject } from "rxjs";
 import { createLogger as createCommonLogger, setLoggerFactory } from "@agentxjs/common";
 import { createClaudeDriver } from "./driver/ClaudeDriver";
 import type { LLMSupply } from "./llm";
@@ -112,6 +116,9 @@ class NodeRuntime implements Runtime {
   private readonly loggerFactory: LoggerFactory;
   private readonly llmProvider: LLMProvider<LLMSupply>;
   private readonly basePath: string;
+
+  // Ecosystem event bus
+  private readonly eventSubject = new Subject<AnyRuntimeEvent>();
 
   constructor(config: NodeRuntimeConfig = {}) {
     // Set base path for all agentx data
@@ -210,6 +217,39 @@ class NodeRuntime implements Runtime {
    */
   createLogger(name: string): Logger {
     return this.loggerFactory.getLogger(name);
+  }
+
+  // ============================================================================
+  // Ecosystem Interface Implementation
+  // ============================================================================
+
+  /**
+   * Subscribe to all ecosystem events
+   *
+   * @param handler - Callback invoked for each event
+   * @returns Unsubscribe function
+   */
+  on(handler: EcosystemEventHandler<AnyRuntimeEvent>): Unsubscribe {
+    const subscription = this.eventSubject.subscribe(handler);
+    return () => subscription.unsubscribe();
+  }
+
+  /**
+   * Emit an event to the ecosystem
+   * Used internally by Receptors
+   *
+   * @param event - The event to emit
+   */
+  emit(event: AnyRuntimeEvent): void {
+    this.eventSubject.next(event);
+  }
+
+  /**
+   * Dispose the runtime and clean up resources
+   */
+  dispose(): void {
+    this.eventSubject.complete();
+    logger.info("NodeRuntime disposed");
   }
 }
 

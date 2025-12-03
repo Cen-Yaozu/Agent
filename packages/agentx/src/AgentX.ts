@@ -97,5 +97,9 @@ export function createAgentX(runtime: Runtime, options?: CreateAgentXOptions): A
     agents: agentManager,
     sessions: sessionManager,
     errors: errorManager,
+    // Ecosystem implementation - delegate to runtime
+    on: (handler) => runtime.on(handler),
+    emit: (event) => runtime.emit(event),
+    dispose: () => runtime.dispose(),
   };
 }

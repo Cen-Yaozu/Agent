@@ -60,13 +60,13 @@
 export type { AgentState } from "./agent/AgentState";
 
 // User types
-export * from "./environment/user";
+export * from "./user";
 
 // Definition types (Docker-style: source template, like Dockerfile)
-export * from "./environment/definition";
+export * from "./definition";
 
 // Image types (Docker-style: built artifact, like Docker Image)
-export * from "./environment/image";
+export * from "./image";
 
 // ============================================================================
 // Business Logic Layer (Platform API)
@@ -113,10 +113,13 @@ export * from "./llm";
 export * from "./mcp";
 
 // Session types
-export * from "./environment/session";
+export * from "./session";
 
 // Container types
-export * from "./environment/container";
+export * from "./container";
+
+// Ecosystem (pure abstractions from systems theory)
+export * from "./ecosystem";
 
 // Type guards
 export * from "./guards";

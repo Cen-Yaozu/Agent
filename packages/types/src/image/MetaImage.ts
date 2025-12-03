@@ -26,7 +26,7 @@
  * ```
  */
 
-import type { AgentDefinition } from "~/environment/definition";
+import type { AgentDefinition } from "~/definition";
 
 /**
  * MetaImage - Genesis image with empty message history

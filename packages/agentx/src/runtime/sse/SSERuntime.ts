@@ -41,8 +41,12 @@ import type {
   LoggerFactory,
   Logger,
   AgentIdResolver,
+  AnyRuntimeEvent,
+  EcosystemEventHandler,
+  Unsubscribe,
 } from "@agentxjs/types";
 import { setLoggerFactory } from "@agentxjs/common";
+import { Subject } from "rxjs";
 import { createSSEDriver } from "./SSEDriver";
 import { RemoteRepository } from "./repository";
 import { BrowserLoggerFactory } from "./logger";
@@ -121,6 +125,9 @@ class SSERuntime implements Runtime {
   private readonly headers: Record<string, string>;
   private readonly sseParams: Record<string, string>;
 
+  // Ecosystem event bus
+  private readonly eventSubject = new Subject<AnyRuntimeEvent>();
+
   constructor(config: SSERuntimeConfig) {
     this.serverUrl = config.serverUrl.replace(/\/+$/, ""); // Remove trailing slash
     this.headers = config.headers ?? {};
@@ -174,6 +181,21 @@ class SSERuntime implements Runtime {
 
   createLogger(name: string): Logger {
     return this.loggerFactory.getLogger(name);
+  }
+
+  // ==================== Ecosystem Implementation ====================
+
+  on(handler: EcosystemEventHandler<AnyRuntimeEvent>): Unsubscribe {
+    const subscription = this.eventSubject.subscribe(handler);
+    return () => subscription.unsubscribe();
+  }
+
+  emit(event: AnyRuntimeEvent): void {
+    this.eventSubject.next(event);
+  }
+
+  dispose(): void {
+    this.eventSubject.complete();
   }
 }
 

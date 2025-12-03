@@ -1,5 +1,5 @@
 /**
- * Runtime - Technical Infrastructure Layer
+ * Runtime - Technical Infrastructure Layer (extends Ecosystem)
  *
  * "Define Once, Run Anywhere"
  *
@@ -9,11 +9,16 @@
  * - createLogger: Creates Logger instances
  * - repository: Data persistence (optional)
  *
+ * As an Ecosystem, Runtime also provides:
+ * - on(): Subscribe to all RuntimeEvents from Receptors
+ * - emit(): Emit events (used internally by Receptors)
+ * - dispose(): Clean up all resources
+ *
  * Agent lifecycle (Container) is managed at AgentX layer, not Runtime.
  * Runtime only provides create functions for technical components.
  *
- * NodeRuntime = createSandbox + createDriver + createLogger + SQLiteRepository
- * SSERuntime = createSandbox (noop) + createDriver (SSE) + createLogger + RemoteRepository
+ * NodeRuntime = Receptors (direct) + SSEEffector + createSandbox + createDriver + ...
+ * BrowserRuntime = Receptors (via transport) + EventDriver + createSandbox (noop) + ...
  */
 
 import type { Sandbox } from "./container/sandbox";
@@ -22,16 +27,21 @@ import type { Repository } from "./repository";
 import type { Logger } from "~/common/logger";
 import type { AgentDefinition } from "~/agent/AgentDefinition";
 import type { AgentContext } from "~/agent/AgentContext";
+import type { Ecosystem } from "~/ecosystem/Ecosystem";
+import type { AnyRuntimeEvent } from "./event";
 
 /**
- * Runtime - Technical infrastructure layer
+ * Runtime - Technical infrastructure layer (extends Ecosystem)
  *
  * Provides create functions for runtime components.
  * ContainerManager (at AgentX layer) uses these to create Agents.
  *
+ * As an Ecosystem, Runtime collects events from all Receptors and
+ * makes them available via on() for external observers.
+ *
  * This is a pure infrastructure interface - no business concepts (tenant, etc.).
  */
-export interface Runtime {
+export interface Runtime extends Ecosystem<AnyRuntimeEvent> {
   /** Runtime identifier (e.g., "node", "sse") */
   readonly name: string;
 

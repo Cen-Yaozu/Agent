@@ -72,3 +72,12 @@ export * from "./container/sandbox";
 // Repository - Storage abstraction (key to isomorphism)
 // SQLiteRepository (Server) vs RemoteRepository (Browser)
 export * from "./repository";
+
+// Receptors - Sense events from business domains
+export * from "./receptor";
+
+// Runtime Events - Concrete ecosystem events
+export * from "./event";
+
+// Channel - Bidirectional communication between Ecosystems
+export * from "./channel";

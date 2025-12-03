@@ -1,9 +1,14 @@
 /**
- * AgentX - Platform API
+ * AgentX - Platform API (extends Ecosystem)
  *
  * The central entry point for all agent operations.
  * Like Express app or Vue app, AgentX provides a unified
  * interface for managing agents, errors, and sessions.
+ *
+ * As an Ecosystem, AgentX provides:
+ * - on(): Subscribe to all RuntimeEvents from the ecosystem
+ * - emit(): Emit events (delegated to Runtime)
+ * - dispose(): Clean up all resources
  *
  * Two modes:
  * - Local: Direct in-memory operations
@@ -16,6 +21,13 @@
  * // Local mode
  * const local = createAgentX();
  * const agent = local.agents.create(definition, config);
+ *
+ * // Listen to ecosystem events
+ * local.on((event) => {
+ *   if (event.type === "agent_ready") {
+ *     console.log("Agent is ready!");
+ *   }
+ * });
  *
  * // Remote mode
  * const remote = createAgentX({
@@ -33,11 +45,14 @@ import type { PlatformManager } from "./platform";
 import type { DefinitionManager } from "./definition";
 import type { ImageManager } from "./image";
 import type { ContainerManager } from "./container";
+import type { Ecosystem } from "~/ecosystem/Ecosystem";
+import type { AnyRuntimeEvent } from "~/runtime/event";
 
 /**
  * Base AgentX interface (shared by Local and Remote)
+ * Extends Ecosystem to provide event subscription across the entire ecosystem.
  */
-interface AgentXBase {
+interface AgentXBase extends Ecosystem<AnyRuntimeEvent> {
   /**
    * Container management (resource isolation units)
    *
