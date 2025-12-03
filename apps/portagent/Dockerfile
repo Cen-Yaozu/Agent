@@ -8,9 +8,19 @@ WORKDIR /app
 # Install portagent from npm
 RUN npm install -g @agentxjs/portagent
 
-# Environment
+# Environment - Defaults
 ENV NODE_ENV=production
 ENV PORT=5200
+ENV LOG_LEVEL=info
+ENV LLM_PROVIDER_MODEL=claude-sonnet-4-20250514
+
+# Environment - Required (must be provided at runtime)
+# LLM_PROVIDER_KEY=sk-ant-xxxxx    # Anthropic API key
+#
+# Environment - Optional (can be overridden at runtime)
+# LLM_PROVIDER_URL=https://api.anthropic.com
+# JWT_SECRET=your-jwt-secret       # Auto-generated if not set
+# INVITE_CODE_REQUIRED=true        # Set to "false" to disable
 
 # Expose port
 EXPOSE 5200

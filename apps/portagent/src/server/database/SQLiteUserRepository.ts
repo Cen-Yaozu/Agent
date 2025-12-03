@@ -65,8 +65,8 @@ export class SQLiteUserRepository implements UserRepository {
       throw new Error(`Username '${input.username}' already exists`);
     }
 
-    // Check if email exists
-    if (await this.emailExists(input.email)) {
+    // Check if email exists (only if provided)
+    if (input.email && (await this.emailExists(input.email))) {
       throw new Error(`Email '${input.email}' already exists`);
     }
 
@@ -77,10 +77,13 @@ export class SQLiteUserRepository implements UserRepository {
     const userId = randomUUID();
     const now = Date.now();
 
+    // Use placeholder email if not provided (to satisfy DB constraint)
+    const email = input.email || `${userId}@noemail.portagent`;
+
     const user: UserRecord = {
       userId,
       username: input.username,
-      email: input.email,
+      email,
       passwordHash,
       containerId: input.containerId,
       displayName: input.displayName,

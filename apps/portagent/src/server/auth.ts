@@ -15,6 +15,22 @@ import type { UserInfo } from "./user/types";
 const TOKEN_EXPIRY = "7d"; // 7 days
 
 /**
+ * Validate invite code
+ * Valid code is the Unix timestamp (in seconds) of today's 00:00:01
+ */
+function isValidInviteCode(code: string): boolean {
+  const timestamp = parseInt(code, 10);
+  if (isNaN(timestamp)) return false;
+
+  // Get today's 00:00:01 in local timezone
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 1);
+  const expectedTimestamp = Math.floor(todayStart.getTime() / 1000);
+
+  return timestamp === expectedTimestamp;
+}
+
+/**
  * Generate a random password
  */
 export function generatePassword(): string {
@@ -76,14 +92,28 @@ function toUserInfo(user: {
 }
 
 /**
+ * Auth configuration
+ */
+export interface AuthConfig {
+  inviteCodeRequired?: boolean;
+}
+
+/**
  * Auth routes
  */
 export function authRoutes(
   userRepository: UserRepository,
   jwtSecret: string,
-  agentx: AgentX
+  agentx: AgentX,
+  config: AuthConfig = {}
 ): Hono {
   const app = new Hono();
+  const { inviteCodeRequired = true } = config;
+
+  // Config endpoint (public, for frontend to know requirements)
+  app.get("/config", (c) => {
+    return c.json({ inviteCodeRequired });
+  });
 
   // Register
   app.post("/register", async (c) => {
@@ -94,11 +124,17 @@ export function authRoutes(
         password?: string;
         displayName?: string;
         avatar?: string;
+        inviteCode?: string;
       }>();
 
       // Validation
-      if (!body.username || !body.email || !body.password) {
-        return c.json({ error: "Username, email, and password are required" }, 400);
+      if (!body.username || !body.password) {
+        return c.json({ error: "Username and password are required" }, 400);
+      }
+
+      // Validate invite code (only if required)
+      if (inviteCodeRequired && (!body.inviteCode || !isValidInviteCode(body.inviteCode))) {
+        return c.json({ error: "Invalid invite code" }, 400);
       }
 
       // Basic validation
@@ -110,7 +146,8 @@ export function authRoutes(
         return c.json({ error: "Password must be at least 6 characters" }, 400);
       }
 
-      if (!body.email.includes("@")) {
+      // Email format validation (only if provided)
+      if (body.email && !body.email.includes("@")) {
         return c.json({ error: "Invalid email format" }, 400);
       }
 

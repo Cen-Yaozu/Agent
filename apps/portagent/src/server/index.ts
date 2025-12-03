@@ -34,6 +34,7 @@ import { createOwnershipHandler } from "./ownership";
 const PORT = parseInt(process.env.PORT || "5200", 10);
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomUUID();
 const USER_DB_PATH = process.env.USER_DB_PATH || join(homedir(), ".agentx/data/portagent.db");
+const INVITE_CODE_REQUIRED = process.env.INVITE_CODE_REQUIRED !== "false"; // default: true
 
 /**
  * Default Agent Definition
@@ -91,7 +92,10 @@ function createApp() {
   app.get("/health", (c) => c.json({ status: "ok", timestamp: Date.now() }));
 
   // Auth routes (register, login)
-  app.route("/api/auth", authRoutes(userRepository, JWT_SECRET, agentx));
+  app.route(
+    "/api/auth",
+    authRoutes(userRepository, JWT_SECRET, agentx, { inviteCodeRequired: INVITE_CODE_REQUIRED })
+  );
 
   // AgentX API (protected with ownership validation)
   const ownershipHandler = createOwnershipHandler(agentx, agentxHandler);
@@ -158,6 +162,7 @@ async function startServer() {
   console.log(`  API Key: ${process.env.LLM_PROVIDER_KEY!.substring(0, 15)}...`);
   console.log(`  User DB: ${USER_DB_PATH}`);
   console.log(`  AgentX DB: ${join(homedir(), ".agentx/data/agentx.db")}`);
+  console.log(`  Invite Code: ${INVITE_CODE_REQUIRED ? "required" : "disabled"}`);
 
   console.log(`\nEndpoints:`);
   console.log(`  GET  /health                    - Health check`);

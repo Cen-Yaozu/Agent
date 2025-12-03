@@ -72,9 +72,9 @@ export interface RegisterUserInput {
   username: string;
 
   /**
-   * User email address
+   * User email address (optional)
    */
-  email: string;
+  email?: string;
 
   /**
    * Plain text password (will be hashed)

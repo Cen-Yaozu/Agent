@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth, fetchAuthConfig } from "../hooks/useAuth";
 
 /**
  * Register Page
@@ -11,10 +11,19 @@ export function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [inviteCodeRequired, setInviteCodeRequired] = useState(true);
   const { register, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // Fetch auth config on mount
+  useEffect(() => {
+    fetchAuthConfig().then((config) => {
+      setInviteCodeRequired(config.inviteCodeRequired);
+    });
+  }, []);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -43,14 +52,26 @@ export function RegisterPage() {
       return;
     }
 
-    if (!email.includes("@")) {
+    if (inviteCodeRequired && !inviteCode) {
+      setError("Invite code is required");
+      return;
+    }
+
+    // Email validation only if provided
+    if (email && !email.includes("@")) {
       setError("Invalid email address");
       return;
     }
 
     setIsLoading(true);
 
-    const result = await register(username, email, password, displayName || undefined);
+    const result = await register(
+      username,
+      password,
+      inviteCode,
+      email || undefined,
+      displayName || undefined
+    );
 
     if (result.success) {
       navigate("/studio", { replace: true });
@@ -89,9 +110,29 @@ export function RegisterPage() {
               />
             </div>
 
+            {inviteCodeRequired && (
+              <div>
+                <label
+                  htmlFor="inviteCode"
+                  className="block text-sm font-medium text-foreground mb-2"
+                >
+                  Invite Code *
+                </label>
+                <input
+                  id="inviteCode"
+                  type="text"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                  placeholder="Enter invite code"
+                  className="w-full px-4 py-3 bg-muted border border-input rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                  required
+                />
+              </div>
+            )}
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
-                Email *
+                Email (optional)
               </label>
               <input
                 id="email"
@@ -100,7 +141,6 @@ export function RegisterPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 className="w-full px-4 py-3 bg-muted border border-input rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                required
               />
             </div>
 
@@ -160,7 +200,13 @@ export function RegisterPage() {
 
             <button
               type="submit"
-              disabled={isLoading || !username || !email || !password || !confirmPassword}
+              disabled={
+                isLoading ||
+                !username ||
+                (inviteCodeRequired && !inviteCode) ||
+                !password ||
+                !confirmPassword
+              }
               className="w-full py-3 px-4 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed text-primary-foreground font-medium rounded-lg transition-colors"
             >
               {isLoading ? "Creating account..." : "Sign Up"}

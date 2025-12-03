@@ -23,8 +23,9 @@ interface AuthContextType {
   ) => Promise<{ success: boolean; error?: string }>;
   register: (
     username: string,
-    email: string,
     password: string,
+    inviteCode: string,
+    email?: string,
     displayName?: string
   ) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
@@ -63,15 +64,16 @@ async function loginApi(
 
 async function registerApi(
   username: string,
-  email: string,
   password: string,
+  inviteCode: string,
+  email?: string,
   displayName?: string
 ): Promise<{ token: string; user: UserInfo } | { error: string }> {
   try {
     const response = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, email, password, displayName }),
+      body: JSON.stringify({ username, password, inviteCode, email, displayName }),
     });
 
     const data = await response.json();
@@ -100,6 +102,28 @@ async function verifyApi(token: string): Promise<UserInfo | null> {
     return data.user;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Auth config from server
+ */
+export interface AuthConfig {
+  inviteCodeRequired: boolean;
+}
+
+/**
+ * Fetch auth config
+ */
+export async function fetchAuthConfig(): Promise<AuthConfig> {
+  try {
+    const response = await fetch("/api/auth/config");
+    if (!response.ok) {
+      return { inviteCodeRequired: true }; // default to required
+    }
+    return await response.json();
+  } catch {
+    return { inviteCodeRequired: true };
   }
 }
 
@@ -162,11 +186,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(
     async (
       username: string,
-      email: string,
       password: string,
+      inviteCode: string,
+      email?: string,
       displayName?: string
     ): Promise<{ success: boolean; error?: string }> => {
-      const result = await registerApi(username, email, password, displayName);
+      const result = await registerApi(username, password, inviteCode, email, displayName);
 
       if ("token" in result) {
         localStorage.setItem(TOKEN_KEY, result.token);
