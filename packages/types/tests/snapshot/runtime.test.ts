@@ -1,7 +1,7 @@
 /**
- * Ecosystem Types Contract Snapshot Test
+ * Runtime Types Contract Snapshot Test
  *
- * This test ensures the stability of the ecosystem type contracts.
+ * This test ensures the stability of the runtime type contracts.
  * Any changes to the exported types will cause this test to fail,
  * requiring explicit acknowledgment via snapshot update.
  *
@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import * as EcosystemExports from "~/ecosystem";
+import * as RuntimeExports from "~/runtime";
 
 /**
  * Extract the shape of exports for snapshot testing.
@@ -40,9 +40,9 @@ function getExportShape(exports: Record<string, unknown>): Record<string, string
   return shape;
 }
 
-describe("Ecosystem Types Contract", () => {
+describe("Runtime Types Contract", () => {
   it("should maintain stable exports", () => {
-    const shape = getExportShape(EcosystemExports);
+    const shape = getExportShape(RuntimeExports);
     expect(shape).toMatchSnapshot();
   });
 
@@ -73,7 +73,7 @@ describe("Ecosystem Types Contract", () => {
 
     for (const exportName of expectedRuntimeExports) {
       expect(
-        EcosystemExports,
+        RuntimeExports,
         `Missing expected export: ${exportName}`
       ).toHaveProperty(exportName);
     }
@@ -81,22 +81,22 @@ describe("Ecosystem Types Contract", () => {
 
   it("should have correct type guard signatures", () => {
     // Verify type guards are functions with correct arity
-    expect(typeof EcosystemExports.isDriveableEvent).toBe("function");
-    expect(typeof EcosystemExports.isConnectionEvent).toBe("function");
-    expect(typeof EcosystemExports.isRuntimeEvent).toBe("function");
-    expect(typeof EcosystemExports.isRequestEvent).toBe("function");
-    expect(typeof EcosystemExports.isResultEvent).toBe("function");
-    expect(typeof EcosystemExports.isNotificationEvent).toBe("function");
-    expect(typeof EcosystemExports.isContainerEvent).toBe("function");
-    expect(typeof EcosystemExports.isSandboxEvent).toBe("function");
-    expect(typeof EcosystemExports.isSessionEvent).toBe("function");
-    expect(typeof EcosystemExports.toAgentStreamEvent).toBe("function");
-    expect(typeof EcosystemExports.isStopReason).toBe("function");
+    expect(typeof RuntimeExports.isDriveableEvent).toBe("function");
+    expect(typeof RuntimeExports.isConnectionEvent).toBe("function");
+    expect(typeof RuntimeExports.isRuntimeEvent).toBe("function");
+    expect(typeof RuntimeExports.isRequestEvent).toBe("function");
+    expect(typeof RuntimeExports.isResultEvent).toBe("function");
+    expect(typeof RuntimeExports.isNotificationEvent).toBe("function");
+    expect(typeof RuntimeExports.isContainerEvent).toBe("function");
+    expect(typeof RuntimeExports.isSandboxEvent).toBe("function");
+    expect(typeof RuntimeExports.isSessionEvent).toBe("function");
+    expect(typeof RuntimeExports.toAgentStreamEvent).toBe("function");
+    expect(typeof RuntimeExports.isStopReason).toBe("function");
   });
 
   it("should export MCP protocol version constant", () => {
     // This constant may change as MCP protocol evolves
-    expect(typeof EcosystemExports.LATEST_PROTOCOL_VERSION).toBe("string");
-    expect(Array.isArray(EcosystemExports.SUPPORTED_PROTOCOL_VERSIONS)).toBe(true);
+    expect(typeof RuntimeExports.LATEST_PROTOCOL_VERSION).toBe("string");
+    expect(Array.isArray(RuntimeExports.SUPPORTED_PROTOCOL_VERSIONS)).toBe(true);
   });
 });

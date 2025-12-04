@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Ecosystem Types Contract > should maintain stable exports 1`] = `
+exports[`Runtime Types Contract > should maintain stable exports 1`] = `
 {
   "LATEST_PROTOCOL_VERSION": "const: "2025-06-18"",
   "SUPPORTED_PROTOCOL_VERSIONS": "object",
