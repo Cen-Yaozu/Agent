@@ -41,6 +41,7 @@ coverage/
 .nyc_output/
 *.lcov
 test-results/
+bdd/reports/
 
 # Test environment variables (contains credentials)
 .env.test
