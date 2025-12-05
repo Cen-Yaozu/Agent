@@ -13,7 +13,7 @@
  *     ├── AgentEvent (stream, state, message, turn, error)
  *     ├── SessionEvent (lifecycle, persist, action)
  *     ├── ContainerEvent (lifecycle)
- *     └── SandboxEvent (llm, workspace, mcp)
+ *     └── SandboxEvent (llm, workdir, mcp)
  * ```
  *
  * Design Principles:
@@ -78,5 +78,5 @@ export type EventCategory =
   | "action" // User actions (resume, fork)
   // Sandbox categories
   | "llm" // LLM operations
-  | "workspace" // File operations
+  | "workdir" // File operations
   | "mcp"; // MCP tool operations

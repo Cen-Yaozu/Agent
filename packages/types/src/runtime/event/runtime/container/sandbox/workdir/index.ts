@@ -1,17 +1,17 @@
 /**
- * Sandbox Workspace Events
+ * Sandbox Workdir Events
  *
- * Events for file system operations in the agent's workspace.
+ * Events for file system operations in the agent's working directory.
  */
 
 import type { RuntimeEvent } from "~/runtime/event/runtime/RuntimeEvent";
 
 /**
- * Base WorkspaceEvent
+ * Base WorkdirEvent
  */
-export interface WorkspaceEvent<T extends string = string, D = unknown> extends RuntimeEvent<T, D> {
+export interface WorkdirEvent<T extends string = string, D = unknown> extends RuntimeEvent<T, D> {
   source: "sandbox";
-  category: "workspace";
+  category: "workdir";
 }
 
 // ============================================================================
@@ -21,7 +21,7 @@ export interface WorkspaceEvent<T extends string = string, D = unknown> extends 
 /**
  * FileReadRequest - Request to read a file
  */
-export interface FileReadRequest extends WorkspaceEvent<"file_read_request"> {
+export interface FileReadRequest extends WorkdirEvent<"file_read_request"> {
   intent: "request";
   data: {
     path: string;
@@ -32,7 +32,7 @@ export interface FileReadRequest extends WorkspaceEvent<"file_read_request"> {
 /**
  * FileReadResult - File read result
  */
-export interface FileReadResult extends WorkspaceEvent<"file_read_result"> {
+export interface FileReadResult extends WorkdirEvent<"file_read_result"> {
   intent: "result";
   data: {
     path: string;
@@ -49,7 +49,7 @@ export interface FileReadResult extends WorkspaceEvent<"file_read_result"> {
 /**
  * FileWriteRequest - Request to write a file
  */
-export interface FileWriteRequest extends WorkspaceEvent<"file_write_request"> {
+export interface FileWriteRequest extends WorkdirEvent<"file_write_request"> {
   intent: "request";
   data: {
     path: string;
@@ -62,7 +62,7 @@ export interface FileWriteRequest extends WorkspaceEvent<"file_write_request"> {
 /**
  * FileWrittenEvent - File was written
  */
-export interface FileWrittenEvent extends WorkspaceEvent<"file_written"> {
+export interface FileWrittenEvent extends WorkdirEvent<"file_written"> {
   intent: "result";
   data: {
     path: string;
@@ -78,7 +78,7 @@ export interface FileWrittenEvent extends WorkspaceEvent<"file_written"> {
 /**
  * FileDeleteRequest - Request to delete a file
  */
-export interface FileDeleteRequest extends WorkspaceEvent<"file_delete_request"> {
+export interface FileDeleteRequest extends WorkdirEvent<"file_delete_request"> {
   intent: "request";
   data: {
     path: string;
@@ -89,7 +89,7 @@ export interface FileDeleteRequest extends WorkspaceEvent<"file_delete_request">
 /**
  * FileDeletedEvent - File was deleted
  */
-export interface FileDeletedEvent extends WorkspaceEvent<"file_deleted"> {
+export interface FileDeletedEvent extends WorkdirEvent<"file_deleted"> {
   intent: "result";
   data: {
     path: string;
@@ -104,7 +104,7 @@ export interface FileDeletedEvent extends WorkspaceEvent<"file_deleted"> {
 /**
  * DirectoryListRequest - Request to list directory
  */
-export interface DirectoryListRequest extends WorkspaceEvent<"directory_list_request"> {
+export interface DirectoryListRequest extends WorkdirEvent<"directory_list_request"> {
   intent: "request";
   data: {
     path: string;
@@ -116,7 +116,7 @@ export interface DirectoryListRequest extends WorkspaceEvent<"directory_list_req
 /**
  * DirectoryListResult - Directory listing result
  */
-export interface DirectoryListResult extends WorkspaceEvent<"directory_list_result"> {
+export interface DirectoryListResult extends WorkdirEvent<"directory_list_result"> {
   intent: "result";
   data: {
     path: string;
@@ -134,9 +134,9 @@ export interface DirectoryListResult extends WorkspaceEvent<"directory_list_resu
 // ============================================================================
 
 /**
- * WorkspaceErrorEvent - Workspace operation error
+ * WorkdirErrorEvent - Workdir operation error
  */
-export interface WorkspaceErrorEvent extends WorkspaceEvent<"workspace_error"> {
+export interface WorkdirErrorEvent extends WorkdirEvent<"workdir_error"> {
   intent: "notification";
   data: {
     operation: string;
@@ -151,9 +151,9 @@ export interface WorkspaceErrorEvent extends WorkspaceEvent<"workspace_error"> {
 // ============================================================================
 
 /**
- * AllWorkspaceEvent - All workspace events
+ * AllWorkdirEvent - All workdir events
  */
-export type AllWorkspaceEvent =
+export type AllWorkdirEvent =
   | FileReadRequest
   | FileReadResult
   | FileWriteRequest
@@ -162,21 +162,21 @@ export type AllWorkspaceEvent =
   | FileDeletedEvent
   | DirectoryListRequest
   | DirectoryListResult
-  | WorkspaceErrorEvent;
+  | WorkdirErrorEvent;
 
 /**
- * Workspace request events
+ * Workdir request events
  */
-export type WorkspaceRequestEvent =
+export type WorkdirRequestEvent =
   | FileReadRequest
   | FileWriteRequest
   | FileDeleteRequest
   | DirectoryListRequest;
 
 /**
- * Workspace result events
+ * Workdir result events
  */
-export type WorkspaceResultEvent =
+export type WorkdirResultEvent =
   | FileReadResult
   | FileWrittenEvent
   | FileDeletedEvent

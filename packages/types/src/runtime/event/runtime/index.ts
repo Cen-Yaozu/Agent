@@ -1,5 +1,8 @@
 /**
  * Runtime Events - Container internal events
+ *
+ * Note: Agent events are defined in @agentxjs/types/agent package.
+ * Runtime transforms AgentOutput to SystemEvent via Presenter.
  */
 
 // Base
@@ -10,9 +13,6 @@ export {
   isResultEvent,
   isNotificationEvent,
 } from "./RuntimeEvent";
-
-// Agent Events
-export * from "./agent";
 
 // Session Events
 export * from "./session";

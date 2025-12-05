@@ -1,4 +1,4 @@
-import type { Container } from "~/runtime/container/Container";
+import type { Container } from "./internal/container/Container";
 
 /**
  * Unsubscribe function returned by event subscription.

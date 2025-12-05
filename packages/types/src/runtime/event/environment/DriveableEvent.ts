@@ -27,7 +27,7 @@
  */
 
 import type { BaseEnvironmentEvent } from "./EnvironmentEvent";
-import type { StopReason } from "~/runtime/container/llm/StopReason";
+import type { StopReason } from "~/runtime/internal/container/llm/StopReason";
 
 // ============================================================================
 // Message Lifecycle Events

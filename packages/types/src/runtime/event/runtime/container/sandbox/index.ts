@@ -2,19 +2,19 @@
  * Sandbox Events
  *
  * All events related to Sandbox resource operations:
- * - Workspace: File system operations
+ * - Workdir: File system operations
  * - MCP: Model Context Protocol tools
  *
  * Note: LLM events are NOT part of Sandbox.
  * Agent system doesn't need to observe LLM-level events.
  */
 
-// Workspace Events
+// Workdir Events
 export type {
-  WorkspaceEvent,
-  AllWorkspaceEvent,
-  WorkspaceRequestEvent,
-  WorkspaceResultEvent,
+  WorkdirEvent,
+  AllWorkdirEvent,
+  WorkdirRequestEvent,
+  WorkdirResultEvent,
   FileReadRequest,
   FileReadResult,
   FileWriteRequest,
@@ -23,8 +23,8 @@ export type {
   FileDeletedEvent,
   DirectoryListRequest,
   DirectoryListResult,
-  WorkspaceErrorEvent,
-} from "./workspace";
+  WorkdirErrorEvent,
+} from "./workdir";
 
 // MCP Events
 export type {
@@ -45,13 +45,13 @@ export type {
 // Combined Union
 // ============================================================================
 
-import type { AllWorkspaceEvent } from "./workspace";
+import type { AllWorkdirEvent } from "./workdir";
 import type { AllMCPEvent } from "./mcp";
 
 /**
  * SandboxEvent - All sandbox events
  */
-export type SandboxEvent = AllWorkspaceEvent | AllMCPEvent;
+export type SandboxEvent = AllWorkdirEvent | AllMCPEvent;
 
 /**
  * Type guard: is this a sandbox event?

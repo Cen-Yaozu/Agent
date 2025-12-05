@@ -39,7 +39,7 @@
  */
 
 import type { Agent } from "~/agent/Agent";
-import type { AgentConfig } from "../AgentConfig";
+import type { AgentConfig } from "../../AgentConfig";
 
 /**
  * Container interface for managing Agent instances at runtime
