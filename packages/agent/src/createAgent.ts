@@ -11,7 +11,6 @@
 
 import type {
   Agent,
-  AgentLifecycle,
   AgentState,
   AgentEventHandler,
   Unsubscribe,
@@ -71,7 +70,6 @@ class SimpleAgent implements Agent {
   readonly createdAt: number;
   readonly messageQueue: MessageQueue;
 
-  private _lifecycle: AgentLifecycle = "running";
   private _state: AgentState = "idle";
   private readonly _messageQueue = new SimpleMessageQueue();
 
@@ -96,10 +94,6 @@ class SimpleAgent implements Agent {
     this.presenter = options.presenter;
   }
 
-  get lifecycle(): AgentLifecycle {
-    return this._lifecycle;
-  }
-
   get state(): AgentState {
     return this._state;
   }
@@ -120,10 +114,6 @@ class SimpleAgent implements Agent {
   }
 
   async receive(message: string | UserMessage): Promise<void> {
-    if (this._lifecycle === "destroyed") {
-      throw new Error("Agent has been destroyed");
-    }
-
     const userMessage: UserMessage =
       typeof message === "string"
         ? {
@@ -155,7 +145,7 @@ class SimpleAgent implements Agent {
     if (this.isProcessing) return;
     this.isProcessing = true;
 
-    while (!this._messageQueue.isEmpty && this._lifecycle === "running") {
+    while (!this._messageQueue.isEmpty) {
       const message = this._messageQueue.dequeue();
       if (!message) break;
 
@@ -269,10 +259,6 @@ class SimpleAgent implements Agent {
     typeOrHandler: string | string[] | AgentEventHandler | EventHandlerMap,
     handler?: AgentEventHandler
   ): Unsubscribe {
-    if (this._lifecycle === "destroyed") {
-      throw new Error("Agent has been destroyed");
-    }
-
     // on(handler) - subscribe to all
     if (typeof typeOrHandler === "function") {
       this.handlers.add(typeOrHandler);
@@ -331,13 +317,11 @@ class SimpleAgent implements Agent {
   }
 
   onReady(handler: () => void): Unsubscribe {
-    // If already running, call immediately
-    if (this._lifecycle === "running") {
-      try {
-        handler();
-      } catch (e) {
-        console.error("onReady handler error:", e);
-      }
+    // Call immediately since agent is ready upon creation
+    try {
+      handler();
+    } catch (e) {
+      console.error("onReady handler error:", e);
     }
     this.readyHandlers.add(handler);
     return () => this.readyHandlers.delete(handler);
@@ -391,7 +375,6 @@ class SimpleAgent implements Agent {
       }
     }
 
-    this._lifecycle = "destroyed";
     this._messageQueue.clear();
     this.handlers.clear();
     this.typeHandlers.clear();

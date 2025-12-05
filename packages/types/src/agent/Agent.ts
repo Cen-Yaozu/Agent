@@ -12,17 +12,12 @@
  *   Agent (logical processor)
  *     - Engine: event assembly
  *     - State: state management
- *     - Lifecycle: lifecycle management
  *     ↓ Processed Events
  * Presenter (event consumer)
  * ```
  *
  * Agent is independent of Runtime system (Container, Session, Bus).
  * It can be tested in isolation with mock Driver and Presenter.
- *
- * Lifecycle:
- * - running: Active, can receive messages
- * - destroyed: Removed from memory, cannot be used
  *
  * API:
  * - receive(message): Send message to agent
@@ -33,7 +28,6 @@
 
 import type { UserMessage } from "./message";
 import type { AgentState } from "./AgentState";
-import type { AgentLifecycle } from "./AgentLifecycle";
 import type { AgentEventHandler, Unsubscribe } from "./internal/AgentEventHandler";
 import type { AgentMiddleware } from "./internal/AgentMiddleware";
 import type { AgentInterceptor } from "./internal/AgentInterceptor";
@@ -90,7 +84,6 @@ export type ReactHandlerMap = Record<string, ((event: AgentOutput) => void) | un
  *
  * Core responsibilities:
  * - State management (AgentState)
- * - Lifecycle management (AgentLifecycle)
  * - Event subscription and distribution
  * - Middleware/Interceptor chain
  */
@@ -104,11 +97,6 @@ export interface Agent {
    * Creation timestamp
    */
   readonly createdAt: number;
-
-  /**
-   * Current lifecycle state
-   */
-  readonly lifecycle: AgentLifecycle;
 
   /**
    * Current conversation state
@@ -163,15 +151,15 @@ export interface Agent {
   /**
    * Subscribe to agent ready event
    *
-   * Called when agent lifecycle becomes 'running'.
-   * If already running, handler is called immediately.
+   * Called when agent is ready to receive messages.
+   * If already ready, handler is called immediately.
    */
   onReady(handler: () => void): Unsubscribe;
 
   /**
    * Subscribe to agent destroy event
    *
-   * Called when agent lifecycle becomes 'destroyed'.
+   * Called when agent is destroyed.
    */
   onDestroy(handler: () => void): Unsubscribe;
 

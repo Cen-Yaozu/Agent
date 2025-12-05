@@ -14,28 +14,12 @@ Feature: Agent Lifecycle
     Then the agent should be created successfully
     And the agent should have a unique agentId
     And the agent createdAt should be set
-    And the agent lifecycle should be "running"
     And the agent state should be "idle"
     And the agent messageQueue should be empty
 
   Scenario: Create multiple agents
     When I create 3 agents with different drivers
     Then each agent should have a unique agentId
-
-  # ==================== Destroy ====================
-
-  Scenario: Destroy idle agent
-    Given an agent is created
-    And the agent state is "idle"
-    When I call destroy on the agent
-    Then the agent lifecycle should be "destroyed"
-
-  Scenario: Destroy agent while processing
-    Given an agent is created
-    And the agent is processing a message
-    When I call destroy on the agent
-    Then the driver interrupt should be called
-    And the agent lifecycle should be "destroyed"
 
   # ==================== Lifecycle Events ====================
 
@@ -49,17 +33,3 @@ Feature: Agent Lifecycle
     And I subscribe to onDestroy
     When I call destroy on the agent
     Then the onDestroy handler should be called
-
-  # ==================== Error Cases ====================
-
-  Scenario: Cannot receive after destroy
-    Given an agent is created
-    And the agent is destroyed
-    When I try to send a message
-    Then it should fail with agent destroyed error
-
-  Scenario: Cannot subscribe after destroy
-    Given an agent is created
-    And the agent is destroyed
-    When I try to subscribe to events
-    Then it should fail with agent destroyed error

@@ -107,7 +107,7 @@ Before(function (this: AgentWorld) {
 // Optional: After hook for cleanup
 After(async function (this: AgentWorld) {
   // Clean up any running agents
-  if (this.agent && this.agent.lifecycle === "running") {
+  if (this.agent) {
     try {
       await this.agent.destroy();
     } catch {
@@ -115,12 +115,10 @@ After(async function (this: AgentWorld) {
     }
   }
   for (const a of this.agents) {
-    if (a.lifecycle === "running") {
-      try {
-        await a.destroy();
-      } catch {
-        // Ignore errors during cleanup
-      }
+    try {
+      await a.destroy();
+    } catch {
+      // Ignore errors during cleanup
     }
   }
 });

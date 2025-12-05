@@ -48,10 +48,6 @@ Then("the agent createdAt should be set", function (this: AgentWorld) {
   assert.ok(this.agent.createdAt <= Date.now(), "createdAt should be in the past");
 });
 
-Then("the agent lifecycle should be {string}", function (this: AgentWorld, lifecycle: string) {
-  assert.strictEqual(this.agent.lifecycle, lifecycle);
-});
-
 Then("the agent state should be {string}", function (this: AgentWorld, state: string) {
   assert.strictEqual(this.agent.state, state);
 });
@@ -73,23 +69,8 @@ Given("an agent is created", function (this: AgentWorld) {
   this.agent = createAgent({ driver: this.driver, presenter: this.presenter });
 });
 
-Given("the agent state is {string}", function (this: AgentWorld, state: string) {
-  assert.strictEqual(this.agent.state, state);
-});
-
-Given("the agent is processing a message", async function (this: AgentWorld) {
-  this.driver.setDelay(1000); // Long delay to keep processing
-  this.agent.receive("Test message"); // Don't await
-  // Wait a bit for state to change
-  await new Promise((resolve) => setTimeout(resolve, 50));
-});
-
 When("I call destroy on the agent", async function (this: AgentWorld) {
   await this.agent.destroy();
-});
-
-Then("the driver interrupt should be called", function (this: AgentWorld) {
-  assert.strictEqual(this.driver.interruptCalled, true);
 });
 
 // ==================== Lifecycle Events ====================
@@ -113,31 +94,4 @@ Then("the handler should be called immediately", function (this: AgentWorld) {
 
 Then("the onDestroy handler should be called", function (this: AgentWorld) {
   assert.strictEqual(this.destroyHandlerCalled, true);
-});
-
-// ==================== Error Cases ====================
-
-Given("the agent is destroyed", async function (this: AgentWorld) {
-  await this.agent.destroy();
-});
-
-When("I try to send a message", async function (this: AgentWorld) {
-  try {
-    await this.agent.receive("Test");
-  } catch (e) {
-    this.error = e as Error;
-  }
-});
-
-When("I try to subscribe to events", function (this: AgentWorld) {
-  try {
-    this.agent.on(() => {});
-  } catch (e) {
-    this.error = e as Error;
-  }
-});
-
-Then("it should fail with agent destroyed error", function (this: AgentWorld) {
-  assert.ok(this.error !== null, "Should have thrown an error");
-  assert.ok(this.error!.message.includes("destroyed"), "Error should mention destroyed");
 });

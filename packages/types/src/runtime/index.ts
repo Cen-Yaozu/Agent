@@ -50,11 +50,13 @@ export * from "./container/llm";
 export * from "./session";
 
 // ============================================================================
-// Agent Runtime Config
+// Agent Runtime
 // ============================================================================
 
+export type { Agent } from "./Agent";
 export type { AgentConfig } from "./AgentConfig";
 export type { AgentContext } from "./AgentContext";
+export type { AgentLifecycle } from "./AgentLifecycle";
 
 // ============================================================================
 // Facades

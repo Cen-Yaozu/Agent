@@ -13,7 +13,6 @@ export type {
   ReactHandlerMap,
 } from "./Agent";
 export type { AgentState } from "./AgentState";
-export type { AgentLifecycle } from "./AgentLifecycle";
 export type { AgentOutput } from "./AgentOutput";
 export type { AgentError, AgentErrorCategory } from "./AgentError";
 export type { MessageQueue } from "./MessageQueue";
