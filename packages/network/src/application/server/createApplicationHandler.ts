@@ -22,13 +22,13 @@
  */
 
 import type {
-  AgentX,
   Repository,
   ApplicationHandler,
   ApplicationHandlerOptions,
   ParsedRequest,
   RequestType,
 } from "@agentxjs/types";
+import type { AgentX } from "@agentxjs/types/agentx";
 import { createLogger } from "@agentxjs/common";
 import {
   PlatformHandler,

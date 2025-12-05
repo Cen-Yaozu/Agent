@@ -31,26 +31,7 @@
 // ============================================================================
 
 export { createAgent } from "./createAgent";
-
-// Re-export types from @agentxjs/types/agent
-export type {
-  Agent,
-  CreateAgentOptions,
-  AgentDriver,
-  AgentPresenter,
-  AgentLifecycle,
-  AgentState,
-  AgentOutput,
-  AgentEventHandler,
-  Unsubscribe,
-  AgentMiddleware,
-  AgentInterceptor,
-  MessageQueue,
-  StateChange,
-  StateChangeHandler,
-  EventHandlerMap,
-  ReactHandlerMap,
-} from "@agentxjs/types/agent";
+export type { Agent, CreateAgentOptions } from "@agentxjs/types/agent";
 
 // ============================================================================
 // Engine (Stateless)
