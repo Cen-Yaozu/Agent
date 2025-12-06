@@ -1,33 +1,55 @@
 /**
- * MirrorContainer - Browser-side Container proxy
+ * MirrorContainer - Browser-side Container mirror
  *
- * Proxies Container operations to server via WebSocket events.
- * All operations are event-driven - no direct HTTP calls.
+ * Mirrors the server-side Container state and proxies operations via WebSocket events.
  *
  * Architecture:
  * ```
  * Browser                          Server
  *   │                               │
- *   │  run_agent event              │
+ *   │  agent_run_request            │
  *   │  ─────────────────────────►   │  Container.run()
+ *   │                               │
+ *   │  ◄───────────────────────────  │  agent_run_response
+ *   │     { agentId, ... }          │
  *   │                               │
  *   │  ◄═══════════════════════════ │  Agent events
  *   │     text_delta, tool_call...  │
  * ```
- *
- * Note: This is a simplified proxy that returns MirrorAgent instead of full Agent.
  */
 
-import type { AgentDefinition, Peer } from "@agentxjs/types";
+import type { Peer, EnvironmentEvent } from "@agentxjs/types";
 import { createLogger } from "@agentxjs/common";
 import { MirrorAgent } from "./MirrorAgent";
 
 const logger = createLogger("mirror/MirrorContainer");
 
 /**
- * MirrorContainer - Browser Container proxy
+ * Helper to create a Mirror request event
+ */
+function createMirrorRequest<T extends string, D>(type: T, data: D): EnvironmentEvent {
+  return {
+    type,
+    timestamp: Date.now(),
+    data,
+    source: "mirror",
+    category: "request",
+    intent: "request",
+  } as EnvironmentEvent;
+}
+
+/**
+ * Agent run configuration (matches server-side AgentRunConfig)
+ */
+export interface AgentRunConfig {
+  name: string;
+  systemPrompt?: string;
+}
+
+/**
+ * MirrorContainer - Browser Container mirror
  *
- * Implements a subset of Container interface for browser usage.
+ * Maintains local state that mirrors server-side Container.
  */
 export class MirrorContainer {
   readonly containerId: string;
@@ -38,12 +60,13 @@ export class MirrorContainer {
     resolve: (agent: MirrorAgent) => void;
     reject: (error: Error) => void;
   }>();
+  private _agentCount = 0;
 
   constructor(containerId: string, peer: Peer) {
     this.containerId = containerId;
     this.peer = peer;
 
-    // Listen for agent events from server
+    // Listen for events from server
     this.peer.onUpstreamEvent((event) => {
       this.handleServerEvent(event);
     });
@@ -52,14 +75,21 @@ export class MirrorContainer {
   }
 
   /**
-   * Run an Agent from a definition
-   *
-   * Sends run_agent event to server and waits for agent_created response.
+   * Get agent count
    */
-  async run(definition: AgentDefinition): Promise<MirrorAgent> {
+  get agentCount(): number {
+    return this._agentCount;
+  }
+
+  /**
+   * Run an Agent with configuration
+   *
+   * Sends agent_run_request event to server and waits for agent_run_response.
+   */
+  async run(config: AgentRunConfig): Promise<MirrorAgent> {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
-    logger.debug("Running agent", { containerId: this.containerId, definitionName: definition.name });
+    logger.debug("Running agent", { containerId: this.containerId, name: config.name });
 
     // Create promise for response
     const promise = new Promise<MirrorAgent>((resolve, reject) => {
@@ -74,16 +104,12 @@ export class MirrorContainer {
       }, 30000);
     });
 
-    // Send run_agent event to server
-    this.peer.sendUpstream({
-      type: "run_agent",
-      timestamp: Date.now(),
-      data: {
-        requestId,
-        containerId: this.containerId,
-        definition,
-      },
-    } as any);
+    // Send agent_run_request event to server
+    this.peer.sendUpstream(createMirrorRequest("agent_run_request", {
+      requestId,
+      containerId: this.containerId,
+      config,
+    }));
 
     return promise;
   }
@@ -91,60 +117,43 @@ export class MirrorContainer {
   /**
    * Get an Agent by ID
    */
-  getAgent(agentId: string): MirrorAgent | undefined {
+  get(agentId: string): MirrorAgent | undefined {
     return this.agents.get(agentId);
   }
 
   /**
    * Check if an Agent exists
    */
-  hasAgent(agentId: string): boolean {
+  has(agentId: string): boolean {
     return this.agents.has(agentId);
   }
 
   /**
    * List all Agents
    */
-  listAgents(): MirrorAgent[] {
+  list(): MirrorAgent[] {
     return Array.from(this.agents.values());
-  }
-
-  /**
-   * List all Agent IDs
-   */
-  listAgentIds(): string[] {
-    return Array.from(this.agents.keys());
-  }
-
-  /**
-   * Get Agent count
-   */
-  agentCount(): number {
-    return this.agents.size;
   }
 
   /**
    * Destroy an Agent by ID
    */
-  async destroyAgent(agentId: string): Promise<boolean> {
+  async destroy(agentId: string): Promise<boolean> {
     const agent = this.agents.get(agentId);
     if (!agent) {
       return false;
     }
 
-    // Send destroy_agent event to server
-    this.peer.sendUpstream({
-      type: "destroy_agent",
-      timestamp: Date.now(),
-      data: {
-        containerId: this.containerId,
-        agentId,
-      },
-    } as any);
+    // Send agent_destroy_request event to server
+    this.peer.sendUpstream(createMirrorRequest("agent_destroy_request", {
+      containerId: this.containerId,
+      agentId,
+    }));
 
     // Remove from local cache
     agent.dispose();
     this.agents.delete(agentId);
+    this._agentCount = this.agents.size;
 
     logger.debug("Agent destroyed", { containerId: this.containerId, agentId });
     return true;
@@ -153,9 +162,9 @@ export class MirrorContainer {
   /**
    * Destroy all Agents
    */
-  async destroyAllAgents(): Promise<void> {
+  async destroyAll(): Promise<void> {
     for (const agentId of this.agents.keys()) {
-      await this.destroyAgent(agentId);
+      await this.destroy(agentId);
     }
   }
 
@@ -163,17 +172,41 @@ export class MirrorContainer {
    * Dispose container
    */
   async dispose(): Promise<void> {
-    await this.destroyAllAgents();
+    await this.destroyAll();
     logger.debug("MirrorContainer disposed", { containerId: this.containerId });
+  }
+
+  /**
+   * Add agent to local state (called when syncing from server)
+   */
+  addAgent(agent: MirrorAgent): void {
+    this.agents.set(agent.agentId, agent);
+    this._agentCount = this.agents.size;
+  }
+
+  /**
+   * Remove agent from local state (called when syncing from server)
+   */
+  removeAgent(agentId: string): void {
+    const agent = this.agents.get(agentId);
+    if (agent) {
+      agent.dispose();
+      this.agents.delete(agentId);
+      this._agentCount = this.agents.size;
+    }
   }
 
   /**
    * Handle events from server
    */
-  private handleServerEvent(event: { type: string; data?: unknown }): void {
+  private handleServerEvent(event: EnvironmentEvent): void {
     switch (event.type) {
-      case "agent_created":
-        this.handleAgentCreated(event);
+      case "agent_run_response":
+        this.handleAgentRunResponse(event);
+        break;
+
+      case "agent_destroyed":
+        this.handleAgentDestroyed(event);
         break;
 
       case "text_delta":
@@ -191,13 +224,14 @@ export class MirrorContainer {
   }
 
   /**
-   * Handle agent_created event
+   * Handle agent_run_response event
    */
-  private handleAgentCreated(event: { type: string; data?: unknown }): void {
-    const { requestId, agentId, containerId } = event.data as {
+  private handleAgentRunResponse(event: EnvironmentEvent): void {
+    const { requestId, agentId, containerId, error } = event.data as {
       requestId: string;
-      agentId: string;
+      agentId?: string;
       containerId: string;
+      error?: string;
     };
 
     // Ignore if not for this container
@@ -207,25 +241,53 @@ export class MirrorContainer {
 
     const pending = this.pendingRuns.get(requestId);
     if (!pending) {
-      logger.warn("No pending run for agent_created", { requestId, agentId });
+      logger.warn("No pending run for agent_run_response", { requestId, agentId });
       return;
     }
 
-    // Create MirrorAgent
-    const agent = new MirrorAgent(agentId, this.peer);
-    this.agents.set(agentId, agent);
+    this.pendingRuns.delete(requestId);
+
+    if (error) {
+      pending.reject(new Error(error));
+      return;
+    }
+
+    if (!agentId) {
+      pending.reject(new Error("No agentId in response"));
+      return;
+    }
+
+    // Create MirrorAgent and add to local state
+    const agent = new MirrorAgent(agentId, this.containerId, this.peer);
+    this.addAgent(agent);
 
     // Resolve promise
-    this.pendingRuns.delete(requestId);
     pending.resolve(agent);
 
     logger.debug("Agent created", { containerId: this.containerId, agentId });
   }
 
   /**
+   * Handle agent_destroyed event (server-initiated)
+   */
+  private handleAgentDestroyed(event: EnvironmentEvent): void {
+    const { agentId, containerId } = event.data as {
+      agentId: string;
+      containerId: string;
+    };
+
+    if (containerId !== this.containerId) {
+      return;
+    }
+
+    this.removeAgent(agentId);
+    logger.debug("Agent destroyed (server)", { containerId, agentId });
+  }
+
+  /**
    * Forward event to the appropriate agent
    */
-  private forwardToAgent(event: { type: string; data?: unknown }): void {
+  private forwardToAgent(event: EnvironmentEvent): void {
     const agentId = (event.data as { agentId?: string })?.agentId;
     if (!agentId) {
       return;
@@ -233,7 +295,7 @@ export class MirrorContainer {
 
     const agent = this.agents.get(agentId);
     if (agent) {
-      agent.handleEvent(event as any);
+      agent.handleEvent(event);
     }
   }
 }

@@ -41,6 +41,8 @@ export type {
 export { isConnectionEvent } from "./ConnectionEvent";
 
 // EnvironmentEvent - Union of all environment events
+// Includes DriveableEvent, ConnectionEvent, and MirrorEvent for network communication
 export type EnvironmentEvent =
   | import("./DriveableEvent").DriveableEvent
-  | import("./ConnectionEvent").ConnectionEvent;
+  | import("./ConnectionEvent").ConnectionEvent
+  | import("../mirror").MirrorEvent;

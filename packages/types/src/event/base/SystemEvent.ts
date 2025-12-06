@@ -48,7 +48,8 @@ export type EventSource =
   | "agent" // Agent internal
   | "session" // Session operations
   | "container" // Container operations
-  | "sandbox"; // Sandbox resources (Workspace, MCP)
+  | "sandbox" // Sandbox resources (Workspace, MCP)
+  | "mirror"; // Browser mirror (request/response)
 
 /**
  * Event intent - what the event represents
@@ -76,7 +77,10 @@ export type EventCategory =
   | "action" // User actions (resume, fork)
   // Sandbox categories
   | "workdir" // File operations
-  | "mcp"; // MCP tool operations
+  | "mcp" // MCP tool operations
+  // Mirror categories (browser-server communication)
+  | "request" // Request from browser to server
+  | "response"; // Response from server to browser
 
 // ============================================================================
 // Event Context

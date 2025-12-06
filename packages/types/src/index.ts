@@ -30,9 +30,14 @@ export * from "./persistence";
 export * from "./network";
 
 // ============================================================================
+// Event Layer
+// ============================================================================
+
+export * from "./event";
+
+// ============================================================================
 // Submodule Entry Points (use import from subpath)
 // ============================================================================
 
 // Agent: import from "@agentxjs/types/agent"
 // Runtime: import from "@agentxjs/types/runtime"
-// AgentX: import from "@agentxjs/types/agentx"

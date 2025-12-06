@@ -1,10 +1,9 @@
 /**
- * @agentxjs/mirror - Browser-side AgentX implementation
+ * @agentxjs/mirror - Browser-side Runtime mirror
  *
  * Provides:
- * - MirrorRuntime: Browser-side Runtime
+ * - MirrorRuntime: Browser-side Runtime mirror (containers, agents, images)
  * - PeerEnvironment: Network-based Environment (Receptor + Effector)
- * - MirrorPersistence: HTTP-based Persistence
  *
  * This is a private package, bundled into agentxjs.
  * Users should use `createMirror` from agentxjs instead.
@@ -14,9 +13,14 @@
  */
 
 // Runtime
-export { MirrorRuntime, type MirrorRuntimeConfig } from "./runtime";
-export { MirrorContainer } from "./runtime";
+export {
+  MirrorRuntime,
+  createMirrorRuntime,
+  type MirrorRuntimeConfig,
+} from "./runtime";
+export { MirrorContainer, type AgentRunConfig } from "./runtime";
 export { MirrorAgent } from "./runtime";
+export { MirrorImage } from "./runtime";
 export { SystemBusImpl } from "./runtime";
 
 // Environment
@@ -27,6 +31,3 @@ export {
   createPeerEnvironment,
   type PeerEnvironmentConfig,
 } from "./environment";
-
-// Persistence
-export { MirrorPersistence, type MirrorPersistenceConfig } from "./persistence";
