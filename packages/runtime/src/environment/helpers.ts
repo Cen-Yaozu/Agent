@@ -2,7 +2,7 @@
  * Helper functions for Claude Environment
  */
 
-import type { UserMessage } from "@agentxjs/types";
+import type { UserMessage } from "@agentxjs/types/agent";
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 
 /**
@@ -14,8 +14,8 @@ export function buildPrompt(message: UserMessage): string {
   }
   if (Array.isArray(message.content)) {
     return message.content
-      .filter((part) => part.type === "text")
-      .map((part) => (part as any).text)
+      .filter((part: { type: string }) => part.type === "text")
+      .map((part: { type: string; text?: string }) => part.text ?? "")
       .join("\n");
   }
   return "";

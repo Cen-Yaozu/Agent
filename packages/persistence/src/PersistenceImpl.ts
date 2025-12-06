@@ -1,5 +1,5 @@
 /**
- * NodePersistence - Multi-backend Persistence implementation
+ * PersistenceImpl - Multi-backend Persistence implementation
  *
  * Uses unstorage for backend-agnostic storage.
  * Supports: Memory, Redis, SQLite, FileSystem, and more.
@@ -7,22 +7,22 @@
  * @example
  * ```typescript
  * // Memory (default, for testing)
- * const persistence = createNodePersistence();
+ * const persistence = createPersistence();
  *
  * // SQLite
- * const persistence = createNodePersistence({
+ * const persistence = createPersistence({
  *   driver: "sqlite",
  *   path: "./data.db",
  * });
  *
  * // Redis
- * const persistence = createNodePersistence({
+ * const persistence = createPersistence({
  *   driver: "redis",
  *   url: "redis://localhost:6379",
  * });
  *
  * // FileSystem
- * const persistence = createNodePersistence({
+ * const persistence = createPersistence({
  *   driver: "fs",
  *   base: "./data",
  * });
@@ -32,20 +32,18 @@
 import { createStorage, type Storage } from "unstorage";
 import type {
   Persistence,
-  DefinitionRepository,
   ImageRepository,
   ContainerRepository,
   SessionRepository,
 } from "@agentxjs/types";
 import { createLogger } from "@agentxjs/common";
 import {
-  StorageDefinitionRepository,
   StorageImageRepository,
   StorageContainerRepository,
   StorageSessionRepository,
 } from "./repository";
 
-const logger = createLogger("persistence/NodePersistence");
+const logger = createLogger("persistence/Persistence");
 
 /**
  * Storage driver type
@@ -53,9 +51,9 @@ const logger = createLogger("persistence/NodePersistence");
 export type StorageDriver = "memory" | "fs" | "redis" | "sqlite";
 
 /**
- * NodePersistence configuration
+ * Persistence configuration
  */
-export interface NodePersistenceConfig {
+export interface PersistenceConfig {
   /**
    * Storage driver (default: "memory")
    */
@@ -83,27 +81,25 @@ export interface NodePersistenceConfig {
 }
 
 /**
- * NodePersistence - Multi-backend Persistence implementation
+ * PersistenceImpl - Multi-backend Persistence implementation
  */
-export class NodePersistence implements Persistence {
-  readonly definitions: DefinitionRepository;
+export class PersistenceImpl implements Persistence {
   readonly images: ImageRepository;
   readonly containers: ContainerRepository;
   readonly sessions: SessionRepository;
 
   private readonly storage: Storage;
 
-  constructor(config: NodePersistenceConfig = {}) {
+  constructor(config: PersistenceConfig = {}) {
     // Use custom storage or create one based on driver
     this.storage = config.storage ?? createStorageFromConfig(config);
 
     // Create repositories
-    this.definitions = new StorageDefinitionRepository(this.storage);
     this.images = new StorageImageRepository(this.storage);
     this.containers = new StorageContainerRepository(this.storage);
     this.sessions = new StorageSessionRepository(this.storage);
 
-    logger.info("NodePersistence created", { driver: config.driver ?? "memory" });
+    logger.info("Persistence created", { driver: config.driver ?? "memory" });
   }
 
   /**
@@ -118,14 +114,14 @@ export class NodePersistence implements Persistence {
    */
   async dispose(): Promise<void> {
     await this.storage.dispose();
-    logger.info("NodePersistence disposed");
+    logger.info("Persistence disposed");
   }
 }
 
 /**
  * Create storage instance from config
  */
-function createStorageFromConfig(config: NodePersistenceConfig): Storage {
+function createStorageFromConfig(config: PersistenceConfig): Storage {
   const driver = config.driver ?? "memory";
 
   switch (driver) {
@@ -165,11 +161,11 @@ function createStorageFromConfig(config: NodePersistenceConfig): Storage {
 }
 
 /**
- * Create NodePersistence instance
+ * Create Persistence instance
  *
  * @param config - Configuration options
- * @returns NodePersistence instance
+ * @returns Persistence instance
  */
-export function createNodePersistence(config?: NodePersistenceConfig): NodePersistence {
-  return new NodePersistence(config);
+export function createPersistence(config?: PersistenceConfig): PersistenceImpl {
+  return new PersistenceImpl(config);
 }

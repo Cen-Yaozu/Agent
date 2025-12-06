@@ -30,6 +30,9 @@ export interface RuntimeAgentConfig {
  * BusPresenter - Forwards AgentOutput to SystemBus and collects messages
  */
 class BusPresenter implements AgentPresenter {
+  readonly name = "BusPresenter";
+  readonly description = "Forwards AgentOutput to SystemBus and collects messages";
+
   constructor(
     private readonly bus: SystemBus,
     private readonly session: Session,
@@ -74,7 +77,6 @@ export class RuntimeAgent implements RuntimeAgentInterface {
   private readonly engine: AgentEngine;
   private readonly driver: BusDriver;
   private readonly bus: SystemBus;
-  private readonly sandbox: Sandbox;
   readonly session: Session;
   readonly config: AgentConfig;
 
@@ -84,9 +86,10 @@ export class RuntimeAgent implements RuntimeAgentInterface {
     this.containerId = config.containerId;
     this.createdAt = Date.now();
     this.bus = config.bus;
-    this.sandbox = config.sandbox;
     this.session = config.session;
     this.config = config.config;
+    // Note: sandbox is stored in config but not directly on this instance
+    // It's used during agent creation but not needed after
 
     // Create Driver
     this.driver = new BusDriver(config.bus, { agentId: this.agentId });

@@ -63,6 +63,9 @@ export class ClaudeReceptor implements Receptor {
     this.emitToBus({
       type: "interrupted",
       timestamp: Date.now(),
+      source: "environment",
+      category: "stream",
+      intent: "notification",
       turnId: "", // TODO: Need to track turnId
       data: { reason },
     } as InterruptedEvent);
@@ -83,6 +86,9 @@ export class ClaudeReceptor implements Receptor {
         this.emitToBus({
           type: "message_start",
           timestamp: Date.now(),
+          source: "environment",
+          category: "stream",
+          intent: "notification",
           turnId,
           data: {
             message: {
@@ -98,6 +104,9 @@ export class ClaudeReceptor implements Receptor {
           this.emitToBus({
             type: "text_delta",
             timestamp: Date.now(),
+            source: "environment",
+            category: "stream",
+            intent: "notification",
             turnId,
             data: { text: event.delta.text },
           } as TextDeltaEvent);
@@ -108,6 +117,9 @@ export class ClaudeReceptor implements Receptor {
         this.emitToBus({
           type: "message_stop",
           timestamp: Date.now(),
+          source: "environment",
+          category: "stream",
+          intent: "notification",
           turnId,
           data: { stopReason: "end_turn" },
         } as MessageStopEvent);

@@ -18,7 +18,6 @@
  */
 
 import type { ContainerRepository } from "./ContainerRepository";
-import type { DefinitionRepository } from "./DefinitionRepository";
 import type { ImageRepository } from "./ImageRepository";
 import type { SessionRepository } from "./SessionRepository";
 
@@ -29,6 +28,5 @@ import type { SessionRepository } from "./SessionRepository";
  */
 export interface Repository
   extends ContainerRepository,
-    DefinitionRepository,
     ImageRepository,
     SessionRepository {}

@@ -9,36 +9,35 @@
  *
  * @example
  * ```typescript
- * import { createNodePersistence } from "@agentxjs/persistence";
+ * import { createPersistence } from "@agentxjs/persistence";
  *
  * // Memory (default)
- * const persistence = createNodePersistence();
+ * const persistence = createPersistence();
  *
  * // SQLite
- * const persistence = createNodePersistence({
+ * const persistence = createPersistence({
  *   driver: "sqlite",
  *   path: "./data.db",
  * });
  *
  * // Redis
- * const persistence = createNodePersistence({
+ * const persistence = createPersistence({
  *   driver: "redis",
  *   url: "redis://localhost:6379",
  * });
  *
- * // Use with createAgentX
- * const agentx = createAgentX(runtime, persistence);
+ * // Use with runtime
+ * const runtime = createRuntime({ persistence });
  * ```
  *
  * @packageDocumentation
  */
 
-export { NodePersistence, createNodePersistence } from "./NodePersistence";
-export type { NodePersistenceConfig, StorageDriver } from "./NodePersistence";
+export { PersistenceImpl, createPersistence } from "./PersistenceImpl";
+export type { PersistenceConfig, StorageDriver } from "./PersistenceImpl";
 
 // Re-export repository implementations for advanced usage
 export {
-  StorageDefinitionRepository,
   StorageImageRepository,
   StorageContainerRepository,
   StorageSessionRepository,

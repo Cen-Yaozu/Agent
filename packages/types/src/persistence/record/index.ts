@@ -5,9 +5,6 @@
  * - SQLite schema (agentx-runtime)
  * - HTTP API contracts (agentx remote)
  *
- * Part of Docker-style layered architecture:
- * Container → Definition → Image → Session → Agent
- *
  * ## ADR: Timestamp Convention
  *
  * All timestamp fields use `number` (Unix milliseconds) instead of `Date` because:
@@ -20,7 +17,6 @@
  */
 
 export type { ContainerRecord, ContainerConfig } from "./ContainerRecord";
-export type { DefinitionRecord } from "./DefinitionRecord";
 export type { ImageRecord } from "./ImageRecord";
 export type { SessionRecord } from "./SessionRecord";
 export type { MessageRecord } from "./MessageRecord";

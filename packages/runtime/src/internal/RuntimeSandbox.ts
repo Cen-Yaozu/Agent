@@ -41,11 +41,9 @@ export class RuntimeSandbox implements Sandbox {
   readonly name: string;
   readonly workdir: Workdir;
 
-  private readonly config: RuntimeSandboxConfig;
   private initialized = false;
 
   constructor(config: RuntimeSandboxConfig) {
-    this.config = config;
     this.name = `sandbox_${config.agentId}`;
 
     const workdirPath = join(
