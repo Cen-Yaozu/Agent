@@ -8,7 +8,8 @@ import { MockEnvironment } from "../../mocks/MockEnvironment";
 
 // Set default timeout to 10 seconds (MockEnvironment is fast)
 setDefaultTimeout(10_000);
-import type { Runtime, Agent, ContainerInfo } from "@agentxjs/types/runtime";
+import type { Runtime, Agent, Container, AgentImage } from "@agentxjs/types/runtime";
+import type { ImageRecord } from "@agentxjs/types";
 import type {
   Persistence,
   ContainerRepository,
@@ -125,15 +126,42 @@ class StubDefinitionRepository implements DefinitionRepository {
 }
 
 /**
- * Stub ImageRepository for testing (not used in runtime tests)
+ * In-memory ImageRepository for testing
  */
-class StubImageRepository implements ImageRepository {
-  async saveImage(): Promise<void> {}
-  async findImageById(): Promise<null> { return null; }
-  async findAllImages(): Promise<[]> { return []; }
-  async findImagesByDefinitionName(): Promise<[]> { return []; }
-  async deleteImage(): Promise<void> {}
-  async imageExists(): Promise<boolean> { return false; }
+class InMemoryImageRepository implements ImageRepository {
+  private data = new Map<string, ImageRecord>();
+
+  async saveImage(record: ImageRecord): Promise<void> {
+    this.data.set(record.imageId, record);
+  }
+
+  async findImageById(imageId: string): Promise<ImageRecord | null> {
+    return this.data.get(imageId) ?? null;
+  }
+
+  async findAllImages(): Promise<ImageRecord[]> {
+    return Array.from(this.data.values());
+  }
+
+  async findImagesByName(name: string): Promise<ImageRecord[]> {
+    return Array.from(this.data.values()).filter((r) => r.name === name);
+  }
+
+  async findImagesByContainerId(containerId: string): Promise<ImageRecord[]> {
+    return Array.from(this.data.values()).filter((r) => r.containerId === containerId);
+  }
+
+  async deleteImage(imageId: string): Promise<void> {
+    this.data.delete(imageId);
+  }
+
+  async imageExists(imageId: string): Promise<boolean> {
+    return this.data.has(imageId);
+  }
+
+  clear(): void {
+    this.data.clear();
+  }
 }
 
 /**
@@ -141,13 +169,14 @@ class StubImageRepository implements ImageRepository {
  */
 class InMemoryPersistence implements Persistence {
   readonly definitions = new StubDefinitionRepository();
-  readonly images = new StubImageRepository();
+  readonly images = new InMemoryImageRepository();
   readonly containers = new InMemoryContainerRepository();
   readonly sessions = new InMemorySessionRepository();
 
   clear(): void {
     (this.containers as InMemoryContainerRepository).clear();
     (this.sessions as InMemorySessionRepository).clear();
+    (this.images as InMemoryImageRepository).clear();
   }
 }
 
@@ -174,13 +203,19 @@ export class RuntimeWorld extends World {
   persistence!: InMemoryPersistence;
 
   // Container tracking
-  containers = new Map<string, ContainerInfo>();
+  containers = new Map<string, Container>();
   currentContainerId: string | null = null;
 
   // Agent tracking
   agents = new Map<string, Agent>();
   currentAgentId: string | null = null;
   agentsList: Agent[] = [];
+
+  // Image tracking
+  images = new Map<string, AgentImage>();
+  currentImage: AgentImage | null = null;
+  imagesList: AgentImage[] = [];
+  resumedAgent: Agent | null = null;
 
   // Event tracking
   receivedEvents: Array<{ type: string; [key: string]: unknown }> = [];
@@ -203,6 +238,10 @@ export class RuntimeWorld extends World {
     this.agents.clear();
     this.currentAgentId = null;
     this.agentsList = [];
+    this.images.clear();
+    this.currentImage = null;
+    this.imagesList = [];
+    this.resumedAgent = null;
     this.receivedEvents = [];
     this.operationResult = null;
     this.operationError = null;

@@ -21,13 +21,12 @@
  * @example
  * ```typescript
  * // Create container via Runtime
- * const container = runtime.createContainer("container-1");
+ * const container = await runtime.containers.create("container-1");
  *
- * // Run an agent from definition
- * const agent = container.run(definition);
+ * // Run an agent from config
+ * const agent = await container.runAgent(config);
  *
  * // Use the agent
- * agent.on("text_delta", (e) => console.log(e.data.text));
  * await agent.receive("Hello!");
  *
  * // Destroy agent when done
@@ -38,7 +37,7 @@
  * ```
  */
 
-import type { Agent } from "~/agent/Agent";
+import type { Agent } from "../../Agent";
 import type { AgentConfig } from "../../AgentConfig";
 
 /**
@@ -50,6 +49,11 @@ export interface Container {
    */
   readonly containerId: string;
 
+  /**
+   * Container creation timestamp
+   */
+  readonly createdAt: number;
+
   // ==================== Agent Lifecycle ====================
 
   /**
@@ -57,13 +61,13 @@ export interface Container {
    *
    * Internally creates:
    * - Sandbox (isolated per Agent)
-   * - Driver (message processor)
+   * - Session (message persistence)
    * - AgentInstance
    *
    * @param config - Agent config (name, systemPrompt, etc.)
    * @returns Running Agent instance
    */
-  run(config: AgentConfig): Promise<Agent>;
+  runAgent(config: AgentConfig): Promise<Agent>;
 
   /**
    * Get an Agent by ID
@@ -71,24 +75,14 @@ export interface Container {
   getAgent(agentId: string): Agent | undefined;
 
   /**
-   * Check if an Agent exists in this container
-   */
-  hasAgent(agentId: string): boolean;
-
-  /**
    * List all Agents in this container
    */
   listAgents(): Agent[];
 
   /**
-   * Get all Agent IDs in this container
-   */
-  listAgentIds(): string[];
-
-  /**
    * Get the number of Agents in this container
    */
-  agentCount(): number;
+  get agentCount(): number;
 
   /**
    * Destroy an Agent by ID

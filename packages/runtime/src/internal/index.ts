@@ -12,3 +12,7 @@ export {
   type RuntimeImageContext,
   type RuntimeAgentImageData,
 } from "./RuntimeAgentImage";
+export {
+  RuntimeContainer,
+  type RuntimeContainerContext,
+} from "./RuntimeContainer";

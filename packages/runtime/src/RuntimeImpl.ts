@@ -1,15 +1,20 @@
 /**
- * RuntimeImpl - Runtime implementation
+ * RuntimeImpl - Runtime implementation (thin layer)
+ *
+ * APIs are thin routing layers. Business logic lives in objects:
+ * - Container manages agents
+ * - Agent manages sessions
+ * - Image manages snapshots
  */
 
-import type { Persistence, ContainerRecord } from "@agentxjs/types";
+import type { Persistence } from "@agentxjs/types";
 import type {
   Runtime,
   ContainersAPI,
   AgentsAPI,
   ImagesAPI,
   EventsAPI,
-  ContainerInfo,
+  Container,
   Unsubscribe,
   RuntimeEventHandler,
   ClaudeLLMConfig,
@@ -19,15 +24,14 @@ import type {
 } from "@agentxjs/types/runtime";
 import type { Agent, AgentConfig } from "@agentxjs/types/runtime";
 import type { Message } from "@agentxjs/types/agent";
-import type { Environment, SystemBus } from "@agentxjs/types/runtime/internal";
+import type { Environment } from "@agentxjs/types/runtime/internal";
 import type { RuntimeConfig } from "./createRuntime";
-import type { RuntimeImageContext } from "./internal";
+import type { RuntimeImageContext, RuntimeContainerContext } from "./internal";
 import {
   SystemBusImpl,
   RuntimeAgent,
-  RuntimeSession,
-  RuntimeSandbox,
   RuntimeAgentImage,
+  RuntimeContainer,
 } from "./internal";
 import { ClaudeEnvironment } from "./environment";
 import { createLogger } from "@agentxjs/common";
@@ -51,11 +55,8 @@ export class RuntimeImpl implements Runtime {
   private readonly environment: Environment;
   private readonly basePath: string;
 
-  /** In-memory agent registry: agentId -> Agent */
-  private readonly agentRegistry = new Map<string, Agent>();
-
-  /** In-memory container -> agents mapping */
-  private readonly containerAgents = new Map<string, Set<string>>();
+  /** Container registry: containerId -> RuntimeContainer */
+  private readonly containerRegistry = new Map<string, RuntimeContainer>();
 
   /** Event handlers */
   private readonly eventHandlers = new Map<string, Set<RuntimeEventHandler>>();
@@ -102,241 +103,90 @@ export class RuntimeImpl implements Runtime {
     logger.info("RuntimeImpl constructor done");
   }
 
-  // ==================== Containers API ====================
+  // ==================== Container Context ====================
+
+  private createContainerContext(): RuntimeContainerContext {
+    return {
+      persistence: this.persistence,
+      bus: this.bus,
+      environment: this.environment,
+      basePath: this.basePath,
+      onDisposed: (containerId) => {
+        this.containerRegistry.delete(containerId);
+      },
+    };
+  }
+
+  // ==================== Containers API (thin layer) ====================
 
   private createContainersAPI(): ContainersAPI {
     return {
-      create: async (containerId: string): Promise<ContainerInfo> => {
-        // Check if exists
-        const existing = await this.persistence.containers.findContainerById(containerId);
-        if (existing) {
-          return this.toContainerInfo(existing);
+      create: async (containerId: string): Promise<Container> => {
+        // Check if already in memory
+        const existing = this.containerRegistry.get(containerId);
+        if (existing) return existing;
+
+        // Try to load from persistence
+        const loaded = await RuntimeContainer.load(containerId, this.createContainerContext());
+        if (loaded) {
+          this.containerRegistry.set(containerId, loaded);
+          return loaded;
         }
 
-        // Create new
-        const now = Date.now();
-        const record: ContainerRecord = {
-          containerId,
-          createdAt: now,
-          updatedAt: now,
-        };
-        await this.persistence.containers.saveContainer(record);
-
-        // Initialize container agents set
-        this.containerAgents.set(containerId, new Set());
-
-        // Emit container_created event
-        this.bus.emit({
-          type: "container_created",
-          timestamp: now,
-          source: "container",
-          category: "lifecycle",
-          intent: "notification",
-          data: {
-            containerId,
-            createdAt: now,
-          },
-          context: {
-            containerId,
-          },
-        });
-
-        return this.toContainerInfo(record);
+        // Create new container
+        const container = await RuntimeContainer.create(containerId, this.createContainerContext());
+        this.containerRegistry.set(containerId, container);
+        return container;
       },
 
-      get: async (containerId: string): Promise<ContainerInfo | undefined> => {
-        const record = await this.persistence.containers.findContainerById(containerId);
-        if (!record) return undefined;
-        return this.toContainerInfo(record);
+      get: (containerId: string): Container | undefined => {
+        return this.containerRegistry.get(containerId);
       },
 
-      list: async (): Promise<ContainerInfo[]> => {
-        const records = await this.persistence.containers.findAllContainers();
-        return records.map((r) => this.toContainerInfo(r));
-      },
-
-      dispose: async (containerId: string): Promise<void> => {
-        const agentCount = this.containerAgents.get(containerId)?.size ?? 0;
-
-        // Destroy all agents in container
-        await this.agents.destroyAll(containerId);
-
-        // Remove from memory
-        this.containerAgents.delete(containerId);
-
-        // Emit container_destroyed event
-        this.bus.emit({
-          type: "container_destroyed",
-          timestamp: Date.now(),
-          source: "container",
-          category: "lifecycle",
-          intent: "notification",
-          data: {
-            containerId,
-            agentCount,
-          },
-          context: {
-            containerId,
-          },
-        });
-
-        // Note: Container record stays in persistence (dispose != delete)
+      list: (): Container[] => {
+        return Array.from(this.containerRegistry.values());
       },
     };
   }
 
-  private toContainerInfo(record: ContainerRecord): ContainerInfo {
-    const agentIds = this.containerAgents.get(record.containerId);
-    return {
-      containerId: record.containerId,
-      createdAt: record.createdAt,
-      agentCount: agentIds?.size ?? 0,
-    };
-  }
-
-  // ==================== Agents API ====================
+  // ==================== Agents API (thin layer) ====================
 
   private createAgentsAPI(): AgentsAPI {
     return {
       run: async (containerId: string, config: AgentConfig): Promise<Agent> => {
-        // Verify container exists
-        const container = await this.persistence.containers.findContainerById(containerId);
+        const container = this.containerRegistry.get(containerId);
         if (!container) {
           throw new Error(`Container not found: ${containerId}`);
         }
-
-        // Generate agent ID and session ID
-        const agentId = this.generateId();
-        const sessionId = this.generateId();
-
-        // Create and initialize Sandbox
-        const sandbox = new RuntimeSandbox({
-          agentId,
-          containerId,
-          basePath: this.basePath,
-        });
-        await sandbox.initialize();
-
-        // Create Session
-        const session = new RuntimeSession({
-          sessionId,
-          agentId,
-          containerId,
-          repository: this.persistence.sessions,
-          bus: this.bus,
-        });
-        await session.initialize();
-
-        // Create RuntimeAgent
-        const agent = new RuntimeAgent({
-          agentId,
-          containerId,
-          config,
-          bus: this.bus,
-          sandbox,
-          session,
-        });
-
-        // Register
-        this.agentRegistry.set(agentId, agent);
-
-        // Add to container
-        let agentIds = this.containerAgents.get(containerId);
-        if (!agentIds) {
-          agentIds = new Set();
-          this.containerAgents.set(containerId, agentIds);
-        }
-        agentIds.add(agentId);
-
-        // Emit agent_registered event
-        this.bus.emit({
-          type: "agent_registered",
-          timestamp: Date.now(),
-          source: "container",
-          category: "lifecycle",
-          intent: "notification",
-          data: {
-            containerId,
-            agentId,
-            definitionName: config.name,
-            registeredAt: Date.now(),
-          },
-          context: {
-            containerId,
-            agentId,
-          },
-        });
-
-        return agent;
+        return container.runAgent(config);
       },
 
       get: (agentId: string): Agent | undefined => {
-        return this.agentRegistry.get(agentId);
+        for (const container of this.containerRegistry.values()) {
+          const agent = container.getAgent(agentId);
+          if (agent) return agent;
+        }
+        return undefined;
       },
 
       list: (containerId: string): Agent[] => {
-        const agentIds = this.containerAgents.get(containerId);
-        if (!agentIds) return [];
-
-        const agents: Agent[] = [];
-        for (const id of agentIds) {
-          const agent = this.agentRegistry.get(id);
-          if (agent) agents.push(agent);
-        }
-        return agents;
+        const container = this.containerRegistry.get(containerId);
+        return container?.listAgents() ?? [];
       },
 
       destroy: async (agentId: string): Promise<boolean> => {
-        const agent = this.agentRegistry.get(agentId);
-        if (!agent) return false;
-
-        // Find containerId before removal
-        let containerId: string | undefined;
-        for (const [cId, agentIds] of this.containerAgents.entries()) {
-          if (agentIds.has(agentId)) {
-            containerId = cId;
-            break;
+        for (const container of this.containerRegistry.values()) {
+          const agent = container.getAgent(agentId);
+          if (agent) {
+            return container.destroyAgent(agentId);
           }
         }
-
-        // Call agent's destroy
-        await agent.destroy();
-
-        // Remove from registry
-        this.agentRegistry.delete(agentId);
-
-        // Remove from container
-        for (const agentIds of this.containerAgents.values()) {
-          agentIds.delete(agentId);
-        }
-
-        // Emit agent_unregistered event
-        this.bus.emit({
-          type: "agent_unregistered",
-          timestamp: Date.now(),
-          source: "container",
-          category: "lifecycle",
-          intent: "notification",
-          data: {
-            containerId: containerId ?? "",
-            agentId,
-          },
-          context: {
-            containerId,
-            agentId,
-          },
-        });
-
-        return true;
+        return false;
       },
 
       destroyAll: async (containerId: string): Promise<void> => {
-        const agentIds = this.containerAgents.get(containerId);
-        if (!agentIds) return;
-
-        for (const agentId of Array.from(agentIds)) {
-          await this.agents.destroy(agentId);
-        }
+        const container = this.containerRegistry.get(containerId);
+        await container?.destroyAllAgents();
       },
     };
   }
@@ -353,95 +203,16 @@ export class RuntimeImpl implements Runtime {
         config: { name: string; description?: string; systemPrompt?: string },
         messages: Message[]
       ): Promise<Agent> => {
-        return this.runAgentWithMessages(containerId, config, messages);
+        // Only get container from registry (not from persistence)
+        // This ensures disposed containers cannot be resumed
+        const container = this.containerRegistry.get(containerId);
+        if (!container) {
+          throw new Error(`Container not found: ${containerId}`);
+        }
+        return container.runAgentWithMessages(config, messages);
       },
       imageRepository: this.persistence.images,
     };
-  }
-
-  /**
-   * Internal: Run agent with pre-loaded messages
-   */
-  private async runAgentWithMessages(
-    containerId: string,
-    config: AgentConfig,
-    messages: Message[]
-  ): Promise<Agent> {
-    // Verify container exists
-    const container = await this.persistence.containers.findContainerById(containerId);
-    if (!container) {
-      throw new Error(`Container not found: ${containerId}`);
-    }
-
-    // Generate agent ID and session ID
-    const agentId = this.generateId();
-    const sessionId = this.generateId();
-
-    // Create and initialize Sandbox
-    const sandbox = new RuntimeSandbox({
-      agentId,
-      containerId,
-      basePath: this.basePath,
-    });
-    await sandbox.initialize();
-
-    // Create Session
-    const session = new RuntimeSession({
-      sessionId,
-      agentId,
-      containerId,
-      repository: this.persistence.sessions,
-      bus: this.bus,
-    });
-    await session.initialize();
-
-    // Pre-load messages into session
-    for (const message of messages) {
-      await session.addMessage(message);
-    }
-
-    // Create RuntimeAgent
-    const agent = new RuntimeAgent({
-      agentId,
-      containerId,
-      config,
-      bus: this.bus,
-      sandbox,
-      session,
-    });
-
-    // Register
-    this.agentRegistry.set(agentId, agent);
-
-    // Add to container
-    let agentIds = this.containerAgents.get(containerId);
-    if (!agentIds) {
-      agentIds = new Set();
-      this.containerAgents.set(containerId, agentIds);
-    }
-    agentIds.add(agentId);
-
-    // Emit agent_registered event
-    this.bus.emit({
-      type: "agent_registered",
-      timestamp: Date.now(),
-      source: "container",
-      category: "lifecycle",
-      intent: "notification",
-      data: {
-        containerId,
-        agentId,
-        definitionName: config.name,
-        registeredAt: Date.now(),
-        resumedFromImage: true,
-      },
-      context: {
-        containerId,
-        agentId,
-      },
-    });
-
-    return agent;
   }
 
   private createImagesAPI(): ImagesAPI {
@@ -551,9 +322,9 @@ export class RuntimeImpl implements Runtime {
   async dispose(): Promise<void> {
     logger.info("Disposing RuntimeImpl");
 
-    // Destroy all agents in all containers
-    for (const containerId of this.containerAgents.keys()) {
-      await this.agents.destroyAll(containerId);
+    // Dispose all containers (which destroys all agents)
+    for (const container of this.containerRegistry.values()) {
+      await container.dispose();
     }
 
     // Dispose environment (if it has a dispose method)
@@ -565,19 +336,10 @@ export class RuntimeImpl implements Runtime {
     this.bus.destroy();
 
     // Clear all state
-    this.agentRegistry.clear();
-    this.containerAgents.clear();
+    this.containerRegistry.clear();
     this.eventHandlers.clear();
     this.allEventHandlers.clear();
 
     logger.info("RuntimeImpl disposed");
-  }
-
-  // ==================== Private Helpers ====================
-
-  private generateId(): string {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 8);
-    return `${timestamp}_${random}`;
   }
 }

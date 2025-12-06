@@ -26,6 +26,7 @@
 import type { Agent } from "./Agent";
 import type { AgentConfig } from "./AgentConfig";
 import type { AgentImage } from "./AgentImage";
+import type { Container } from "./internal/container/Container";
 
 /**
  * Unsubscribe function returned by event subscription.
@@ -38,65 +39,66 @@ export type Unsubscribe = () => void;
 export type RuntimeEventHandler<E = unknown> = (event: E) => void;
 
 /**
- * Container info returned by containers API
- */
-export interface ContainerInfo {
-  readonly containerId: string;
-  readonly createdAt: number;
-  readonly agentCount: number;
-}
-
-/**
- * Containers API - Container management operations
+ * Containers API - Container management operations (thin layer)
+ *
+ * This is a routing layer. Business logic lives in Container objects.
  */
 export interface ContainersAPI {
   /**
-   * Create a new container
+   * Create or get an existing container
+   *
+   * @param containerId - Unique container identifier
+   * @returns Container object with full behavior
    */
-  create(containerId: string): Promise<ContainerInfo>;
+  create(containerId: string): Promise<Container>;
 
   /**
    * Get container by ID
    */
-  get(containerId: string): Promise<ContainerInfo | undefined>;
+  get(containerId: string): Container | undefined;
 
   /**
    * List all containers
    */
-  list(): Promise<ContainerInfo[]>;
-
-  /**
-   * Dispose a container and all its agents
-   */
-  dispose(containerId: string): Promise<void>;
+  list(): Container[];
 }
 
 /**
- * Agents API - Agent management operations
+ * Agents API - Agent management operations (thin layer)
+ *
+ * This is a routing layer. Operations delegate to Container.
  */
 export interface AgentsAPI {
   /**
    * Run an agent in a container
+   *
+   * Shortcut for: container.runAgent(config)
    */
   run(containerId: string, config: AgentConfig): Promise<Agent>;
 
   /**
-   * Get agent by ID
+   * Get agent by ID (searches all containers)
    */
   get(agentId: string): Agent | undefined;
 
   /**
    * List all agents in a container
+   *
+   * Shortcut for: container.listAgents()
    */
   list(containerId: string): Agent[];
 
   /**
    * Destroy an agent
+   *
+   * Shortcut for: container.destroyAgent(agentId)
    */
   destroy(agentId: string): Promise<boolean>;
 
   /**
    * Destroy all agents in a container
+   *
+   * Shortcut for: container.destroyAllAgents()
    */
   destroyAll(containerId: string): Promise<void>;
 }

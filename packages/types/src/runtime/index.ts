@@ -17,12 +17,13 @@ export type {
   Runtime,
   RuntimeEventHandler,
   Unsubscribe,
-  ContainerInfo,
   ContainersAPI,
   AgentsAPI,
   ImagesAPI,
   EventsAPI,
 } from "./Runtime";
+
+export type { Container } from "./internal/container/Container";
 
 export type { AgentImage, ImageMessage } from "./AgentImage";
 

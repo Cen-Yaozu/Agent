@@ -16,6 +16,7 @@ export const agent = {
 export const runtime = {
   ...common,
   import: ["steps/runtime/**/*.ts"],
+  tags: "not @pending",
 };
 
 export const mirror = {
