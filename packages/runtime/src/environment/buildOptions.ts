@@ -5,6 +5,9 @@
  */
 
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
+import { createLogger } from "@agentxjs/common";
+
+const logger = createLogger("environment/buildOptions");
 
 /**
  * Environment context for Claude SDK
@@ -38,10 +41,18 @@ export function buildOptions(
     options.cwd = context.cwd;
   }
 
-  // Environment variables
-  const env: Record<string, string> = {
-    ...(process.env as Record<string, string>),
-  };
+  // Environment variables - must include PATH for subprocess to find node
+  const env: Record<string, string> = {};
+  // Copy all process.env values, filtering out undefined
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined) {
+      env[key] = value;
+    }
+  }
+  // Ensure PATH is set (critical for subprocess to find node)
+  if (!env.PATH && process.env.PATH) {
+    env.PATH = process.env.PATH;
+  }
   if (context.baseUrl) {
     env.ANTHROPIC_BASE_URL = context.baseUrl;
   }
@@ -49,6 +60,22 @@ export function buildOptions(
     env.ANTHROPIC_API_KEY = context.apiKey;
   }
   options.env = env;
+
+  logger.info("buildOptions called", {
+    hasPath: !!env.PATH,
+    pathLength: env.PATH?.length,
+    hasApiKey: !!env.ANTHROPIC_API_KEY,
+    hasBaseUrl: !!env.ANTHROPIC_BASE_URL,
+    baseUrl: env.ANTHROPIC_BASE_URL,
+    model: context.model,
+    permissionMode: context.permissionMode || "bypassPermissions",
+    cwd: context.cwd,
+  });
+
+  // Capture stderr from SDK subprocess for debugging
+  options.stderr = (data: string) => {
+    logger.info("SDK stderr", { data: data.trim() });
+  };
 
   // Note: We don't set options.executable - SDK defaults to 'node' or 'bun'
   // The SDK will automatically find the claude-code CLI
