@@ -6,6 +6,7 @@
 
 import type { Effector, SystemBusConsumer } from "@agentxjs/types/runtime/internal";
 import type { UserMessage } from "@agentxjs/types/agent";
+import type { EventContext } from "@agentxjs/types/runtime";
 import {
   query,
   type SDKUserMessage,
@@ -16,7 +17,7 @@ import { createLogger } from "@agentxjs/common";
 import { buildOptions, type EnvironmentContext } from "./buildOptions";
 import { buildSDKUserMessage } from "./helpers";
 import { observableToAsyncIterable } from "./observableToAsyncIterable";
-import type { ClaudeReceptor } from "./ClaudeReceptor";
+import type { ClaudeReceptor, ReceptorMeta } from "./ClaudeReceptor";
 
 const logger = createLogger("ecosystem/ClaudeEffector");
 
@@ -53,6 +54,7 @@ export class ClaudeEffector implements Effector {
   private claudeQuery: Query | null = null;
   private isInitialized = false;
   private wasInterrupted = false;
+  private currentMeta: ReceptorMeta | null = null;
 
   constructor(config: ClaudeEffectorConfig, receptor: ClaudeReceptor) {
     this.config = config;
@@ -65,24 +67,44 @@ export class ClaudeEffector implements Effector {
   connect(consumer: SystemBusConsumer): void {
     logger.debug("ClaudeEffector connected to SystemBusConsumer");
 
-    // Listen for user_message events
+    // Listen for user_message events (with requestId and context)
     consumer.on("user_message", async (event) => {
-      const message = (event as { type: string; data: UserMessage }).data;
-      await this.send(message);
+      const typedEvent = event as {
+        type: string;
+        data: UserMessage;
+        requestId?: string;
+        context?: EventContext;
+      };
+      const message = typedEvent.data;
+      const meta: ReceptorMeta = {
+        requestId: typedEvent.requestId || "",
+        context: typedEvent.context || {},
+      };
+      await this.send(message, meta);
     });
 
     // Listen for interrupt events
-    consumer.on("interrupt", () => {
-      this.interrupt();
+    consumer.on("interrupt", (event) => {
+      const typedEvent = event as {
+        type: string;
+        requestId?: string;
+        context?: EventContext;
+      };
+      const meta: ReceptorMeta = {
+        requestId: typedEvent.requestId || "",
+        context: typedEvent.context || {},
+      };
+      this.interrupt(meta);
     });
   }
 
   /**
    * Send a message to Claude SDK
    */
-  private async send(message: UserMessage): Promise<void> {
+  private async send(message: UserMessage, meta: ReceptorMeta): Promise<void> {
     this.wasInterrupted = false;
     this.currentAbortController = new AbortController();
+    this.currentMeta = meta;  // Store for background listener
 
     const timeout = this.config.timeout ?? DEFAULT_TIMEOUT;
     const timeoutId = setTimeout(() => {
@@ -102,26 +124,34 @@ export class ClaudeEffector implements Effector {
             ? message.content.substring(0, 80)
             : "[structured]",
         timeout,
+        requestId: meta.requestId,
       });
 
       this.promptSubject.next(sdkUserMessage);
 
       // Process SDK responses
-      await this.processResponses();
+      // Note: We don't await here - background listener handles responses
+      // currentMeta stays set until the next send() call
     } finally {
       clearTimeout(timeoutId);
       this.currentAbortController = null;
       this.wasInterrupted = false;
+      // Don't clear currentMeta - it's needed by background listener
+      // this.currentMeta = null;
     }
   }
 
   /**
    * Interrupt current operation
    */
-  private interrupt(): void {
+  private interrupt(meta?: ReceptorMeta): void {
     if (this.claudeQuery) {
-      logger.debug("Interrupting Claude query");
+      logger.debug("Interrupting Claude query", { requestId: meta?.requestId });
       this.wasInterrupted = true;
+      // Store meta for interrupted event
+      if (meta) {
+        this.currentMeta = meta;
+      }
       this.claudeQuery.interrupt().catch((err) => {
         logger.debug("SDK interrupt() error (may be expected)", { error: err });
       });
@@ -168,9 +198,9 @@ export class ClaudeEffector implements Effector {
     (async () => {
       try {
         for await (const sdkMsg of this.claudeQuery!) {
-          // Forward to receptor for emission
-          if (sdkMsg.type === "stream_event") {
-            this.receptor.feed(sdkMsg);
+          // Forward to receptor for emission with current meta
+          if (sdkMsg.type === "stream_event" && this.currentMeta) {
+            this.receptor.feed(sdkMsg, this.currentMeta);
           }
 
           // Capture session ID
@@ -181,7 +211,7 @@ export class ClaudeEffector implements Effector {
           // Handle result
           if (sdkMsg.type === "result") {
             if (sdkMsg.subtype === "error_during_execution" && this.wasInterrupted) {
-              this.receptor.emitInterrupted("user_interrupt");
+              this.receptor.emitInterrupted("user_interrupt", this.currentMeta || undefined);
             }
           }
         }

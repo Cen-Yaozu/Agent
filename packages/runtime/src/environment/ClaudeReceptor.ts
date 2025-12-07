@@ -20,10 +20,18 @@ import type {
   TextDeltaEvent,
   MessageStopEvent,
   InterruptedEvent,
+  EventContext,
 } from "@agentxjs/types/runtime";
 import type { SDKPartialAssistantMessage } from "@anthropic-ai/claude-agent-sdk";
-import { Subject } from "rxjs";
 import { createLogger } from "@agentxjs/common";
+
+/**
+ * Metadata passed with each SDK message for event correlation
+ */
+export interface ReceptorMeta {
+  requestId: string;
+  context: EventContext;
+}
 
 const logger = createLogger("ecosystem/ClaudeReceptor");
 
@@ -34,7 +42,7 @@ const logger = createLogger("ecosystem/ClaudeReceptor");
  */
 export class ClaudeReceptor implements Receptor {
   private producer: SystemBusProducer | null = null;
-  readonly responseSubject = new Subject<SDKPartialAssistantMessage>();
+  private currentMeta: ReceptorMeta | null = null;
 
   /**
    * Connect to SystemBus producer to emit events
@@ -42,34 +50,32 @@ export class ClaudeReceptor implements Receptor {
   connect(producer: SystemBusProducer): void {
     this.producer = producer;
     logger.debug("ClaudeReceptor connected to SystemBusProducer");
-
-    // Subscribe to SDK responses and emit to bus
-    this.responseSubject.subscribe({
-      next: (sdkMsg) => this.processStreamEvent(sdkMsg),
-      error: (err) => logger.error("Response stream error", { error: err }),
-      complete: () => logger.debug("Response stream completed"),
-    });
   }
 
   /**
-   * Feed SDK message to receptor (called by ClaudeEnvironment)
+   * Feed SDK message to receptor with correlation metadata
+   * @param sdkMsg - SDK message from Claude
+   * @param meta - Request metadata for event correlation
    */
-  feed(sdkMsg: SDKPartialAssistantMessage): void {
-    this.responseSubject.next(sdkMsg);
+  feed(sdkMsg: SDKPartialAssistantMessage, meta: ReceptorMeta): void {
+    this.currentMeta = meta;
+    this.processStreamEvent(sdkMsg);
   }
 
   /**
    * Emit interrupted event
    */
-  emitInterrupted(reason: "user_interrupt" | "timeout" | "error" | "system"): void {
+  emitInterrupted(reason: "user_interrupt" | "timeout" | "error" | "system", meta?: ReceptorMeta): void {
+    const eventMeta = meta || this.currentMeta;
     this.emitToBus({
       type: "interrupted",
       timestamp: Date.now(),
       source: "environment",
       category: "stream",
       intent: "notification",
-      broadcastable: false, // Internal event, processed by BusDriver only
-      turnId: "", // TODO: Need to track turnId
+      broadcastable: false,
+      requestId: eventMeta?.requestId,
+      context: eventMeta?.context,
       data: { reason },
     } as InterruptedEvent);
   }
@@ -77,12 +83,11 @@ export class ClaudeReceptor implements Receptor {
   /**
    * Process stream_event from SDK and emit corresponding DriveableEvent
    *
-   * TODO: turnId should be passed from Effector when the request is made.
-   * Currently using placeholder empty string.
+   * Uses currentMeta for requestId and context correlation.
    */
   private processStreamEvent(sdkMsg: SDKPartialAssistantMessage): void {
     const event = sdkMsg.event;
-    const turnId = ""; // TODO: Implement turnId tracking
+    const { requestId, context } = this.currentMeta || {};
 
     // All DriveableEvents are internal-only (broadcastable: false)
     // They are consumed by BusDriver and processed through MealyMachine
@@ -97,7 +102,8 @@ export class ClaudeReceptor implements Receptor {
           category: "stream",
           intent: "notification",
           broadcastable: false,
-          turnId,
+          requestId,
+          context,
           data: {
             message: {
               id: event.message.id,
@@ -116,7 +122,8 @@ export class ClaudeReceptor implements Receptor {
             category: "stream",
             intent: "notification",
             broadcastable: false,
-            turnId,
+            requestId,
+            context,
             data: { text: event.delta.text },
           } as TextDeltaEvent);
         }
@@ -130,7 +137,8 @@ export class ClaudeReceptor implements Receptor {
           category: "stream",
           intent: "notification",
           broadcastable: false,
-          turnId,
+          requestId,
+          context,
           data: { stopReason: "end_turn" },
         } as MessageStopEvent);
         break;

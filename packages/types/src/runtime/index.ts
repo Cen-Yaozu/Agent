@@ -117,6 +117,7 @@ export type {
   EventSource,
   EventIntent,
   EventCategory,
+  EventContext,
 } from "~/event/base/SystemEvent";
 
 export type {

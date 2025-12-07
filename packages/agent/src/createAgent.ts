@@ -21,6 +21,7 @@ import type {
   ReactHandlerMap,
   AgentOutput,
   CreateAgentOptions,
+  StreamEvent,
 } from "@agentxjs/types/agent";
 import type {
   AgentMiddleware,
@@ -194,22 +195,7 @@ class SimpleAgent implements AgentEngine {
     try {
       console.log("[SimpleAgent.processMessage] Starting for-await loop...");
       for await (const streamEvent of driverStream) {
-        logger.info("✅ Received streamEvent", { type: streamEvent.type });
-
-        // Process through MealyMachine to get all outputs
-        // (stream + message + state + turn events)
-        const outputs = this.machine.process(this.agentId, streamEvent);
-
-        logger.info("✅ MealyMachine outputs", { count: outputs.length, types: outputs.map(o => o.type) });
-
-        // Emit all outputs
-        for (const output of outputs) {
-          // Let StateMachine process StateEvents first
-          this.stateMachine.process(output);
-
-          // Emit output to presenter and handlers
-          this.emitOutput(output);
-        }
+        this.handleStreamEvent(streamEvent);
       }
       console.log("[SimpleAgent.processMessage] For-await loop completed");
     } catch (error) {
@@ -218,6 +204,31 @@ class SimpleAgent implements AgentEngine {
       throw error;
     }
     console.log("[SimpleAgent.processMessage] END");
+  }
+
+  /**
+   * Handle a stream event from the driver (push-based API)
+   *
+   * This method processes a single StreamEvent through the MealyMachine
+   * and emits all resulting outputs to presenter and handlers.
+   */
+  handleStreamEvent(event: StreamEvent): void {
+    logger.info("handleStreamEvent", { type: event.type });
+
+    // Process through MealyMachine to get all outputs
+    // (stream + message + state + turn events)
+    const outputs = this.machine.process(this.agentId, event);
+
+    logger.info("MealyMachine outputs", { count: outputs.length, types: outputs.map(o => o.type) });
+
+    // Emit all outputs
+    for (const output of outputs) {
+      // Let StateMachine process StateEvents first
+      this.stateMachine.process(output);
+
+      // Emit output to presenter and handlers
+      this.emitOutput(output);
+    }
   }
 
   private emitOutput(output: AgentOutput): void {

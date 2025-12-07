@@ -27,6 +27,8 @@ import type { StopReason } from "~/runtime/internal/container/llm/StopReason";
  * - source: "environment" (from external LLM)
  * - category: "stream" (streaming output)
  * - intent: "notification" (informational, no action needed)
+ * - requestId: correlation with the original request
+ * - context: agent/image/session scope (inherited from SystemEvent)
  */
 interface BaseStreamEvent<T extends string, D = unknown>
   extends SystemEvent<T, D, "environment", "stream", "notification"> {
@@ -34,6 +36,11 @@ interface BaseStreamEvent<T extends string, D = unknown>
    * Content block index (for multi-block responses)
    */
   index?: number;
+
+  /**
+   * Request ID for correlating events with the original message_send_request
+   */
+  requestId?: string;
 }
 
 // ============================================================================

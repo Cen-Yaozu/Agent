@@ -203,33 +203,35 @@ export class RuntimeImpl implements Runtime {
       },
 
       // Agent operations (by imageId - with auto-activation)
-      receiveMessage: async (imageId: string | undefined, agentId: string | undefined, content: string) => {
+      receiveMessage: async (imageId: string | undefined, agentId: string | undefined, content: string, requestId: string) => {
         // If imageId provided, auto-activate the image
         if (imageId) {
-          logger.debug("Receiving message by imageId", { imageId, contentLength: content.length });
+          logger.debug("Receiving message by imageId", { imageId, contentLength: content.length, requestId });
           const record = await this.persistence.images.findImageById(imageId);
           if (!record) throw new Error(`Image not found: ${imageId}`);
 
           const container = await this.getOrCreateContainer(record.containerId);
           const { agent, reused } = await container.runImage(record);
-          logger.info("Message routed to agent", { imageId, agentId: agent.agentId, reused });
-          await agent.receive(content);
+          logger.info("Message routed to agent", { imageId, agentId: agent.agentId, reused, requestId });
+          // Pass requestId for event correlation
+          await agent.receive(content, requestId);
           return { agentId: agent.agentId, imageId };
         }
 
         // Fallback to agentId (legacy)
         if (agentId) {
-          logger.debug("Receiving message by agentId (legacy)", { agentId, contentLength: content.length });
+          logger.debug("Receiving message by agentId (legacy)", { agentId, contentLength: content.length, requestId });
           const agent = this.findAgent(agentId);
           if (!agent) throw new Error(`Agent not found: ${agentId}`);
-          await agent.receive(content);
+          // Pass requestId for event correlation
+          await agent.receive(content, requestId);
           const foundImageId = this.findImageIdForAgent(agentId);
           return { agentId, imageId: foundImageId };
         }
 
         throw new Error("Either imageId or agentId must be provided");
       },
-      interruptAgent: (imageId: string | undefined, agentId: string | undefined) => {
+      interruptAgent: (imageId: string | undefined, agentId: string | undefined, requestId?: string) => {
         // If imageId provided, find agent for that image
         if (imageId) {
           const foundAgentId = this.findAgentIdForImage(imageId);
@@ -239,8 +241,9 @@ export class RuntimeImpl implements Runtime {
           }
           const agent = this.findAgent(foundAgentId);
           if (agent) {
-            logger.info("Interrupting agent by imageId", { imageId, agentId: foundAgentId });
-            agent.interrupt();
+            logger.info("Interrupting agent by imageId", { imageId, agentId: foundAgentId, requestId });
+            // Pass requestId for event correlation
+            agent.interrupt(requestId);
           }
           return { imageId, agentId: foundAgentId };
         }
@@ -249,8 +252,9 @@ export class RuntimeImpl implements Runtime {
         if (agentId) {
           const agent = this.findAgent(agentId);
           if (!agent) throw new Error(`Agent not found: ${agentId}`);
-          logger.info("Interrupting agent by agentId (legacy)", { agentId });
-          agent.interrupt();
+          logger.info("Interrupting agent by agentId (legacy)", { agentId, requestId });
+          // Pass requestId for event correlation
+          agent.interrupt(requestId);
           const foundImageId = this.findImageIdForAgent(agentId);
           return { agentId, imageId: foundImageId };
         }

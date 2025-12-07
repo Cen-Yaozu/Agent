@@ -51,8 +51,8 @@ export interface RuntimeOperations {
   destroyAllAgents(containerId: string): Promise<void>;
 
   // Agent operations (by imageId - with auto-activation)
-  receiveMessage(imageId: string | undefined, agentId: string | undefined, content: string): Promise<{ agentId: string; imageId?: string }>;
-  interruptAgent(imageId: string | undefined, agentId: string | undefined): { agentId?: string; imageId?: string };
+  receiveMessage(imageId: string | undefined, agentId: string | undefined, content: string, requestId: string): Promise<{ agentId: string; imageId?: string }>;
+  interruptAgent(imageId: string | undefined, agentId: string | undefined, requestId?: string): { agentId?: string; imageId?: string };
 
   // Image operations (new model)
   createImage(containerId: string, config: { name?: string; description?: string; systemPrompt?: string }): Promise<ImageListItemResult>;
@@ -237,7 +237,8 @@ export class CommandHandler extends BaseEventHandler {
     logger.debug("Handling message_send_request", { requestId, imageId, agentId });
 
     try {
-      const result = await this.ops.receiveMessage(imageId, agentId, content);
+      // Pass requestId for event correlation
+      const result = await this.ops.receiveMessage(imageId, agentId, content, requestId);
       this.bus.emit(createResponse("message_send_response", {
         requestId,
         imageId: result.imageId,
@@ -258,7 +259,8 @@ export class CommandHandler extends BaseEventHandler {
     logger.debug("Handling agent_interrupt_request", { requestId, imageId, agentId });
 
     try {
-      const result = this.ops.interruptAgent(imageId, agentId);
+      // Pass requestId for event correlation
+      const result = this.ops.interruptAgent(imageId, agentId, requestId);
       this.bus.emit(createResponse("agent_interrupt_response", {
         requestId,
         imageId: result.imageId,

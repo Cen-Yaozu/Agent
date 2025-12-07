@@ -2,10 +2,35 @@
  * RuntimeAgent - Full Agent implementation
  *
  * Combines:
- * - Engine: Event processing (from @agentxjs/agent)
- * - Driver: Bus communication
- * - Sandbox: Workdir, MCP
- * - Session: Message persistence
+ * - Interactor: User input handling (in)
+ * - Driver: DriveableEvent listening (out)
+ * - Engine: Event processing (MealyMachine)
+ * - Presenter: Event output and persistence
+ * - Session: Message storage
+ *
+ * Architecture:
+ * ```
+ * AgentInteractor (in)              BusDriver (out)
+ *   │                                  │
+ *   │ emit user_message                │ listen DriveableEvent
+ *   ▼                                  ▼
+ * SystemBus ─────────────────────────────────────────
+ *   │                                  │
+ *   ▼                                  │
+ * ClaudeEffector                       │
+ *   │                                  │
+ *   ▼                                  │
+ * Claude SDK                           │
+ *   │                                  │
+ *   ▼                                  │
+ * ClaudeReceptor ──────────────────────┘
+ *                                      │
+ *                                      ▼
+ *                               AgentEngine.handleStreamEvent()
+ *                                      │
+ *                                      ▼
+ *                               BusPresenter (persist + emit)
+ * ```
  */
 
 import type { Agent as RuntimeAgentInterface, AgentLifecycle, AgentConfig, SystemEvent, EventCategory } from "@agentxjs/types/runtime";
@@ -14,7 +39,6 @@ import type {
   AgentPresenter,
   AgentOutput,
   Message,
-  UserMessage,
   AssistantMessage,
   ToolCallMessage,
   ToolResultMessage,
@@ -26,6 +50,7 @@ import type { SystemBus, SystemBusProducer, Sandbox, Session } from "@agentxjs/t
 import { createAgent } from "@agentxjs/agent";
 import { createLogger } from "@agentxjs/common";
 import { BusDriver } from "./BusDriver";
+import { AgentInteractor } from "./AgentInteractor";
 
 const logger = createLogger("runtime/RuntimeAgent");
 
@@ -55,6 +80,8 @@ export interface RuntimeAgentConfig {
  * - State layer: Convert to SystemEvent, emit
  * - Message layer: Convert data to Message type, emit, persist
  * - Turn layer: Convert to SystemEvent, emit
+ *
+ * Note: user_message is now persisted by AgentInteractor, not here.
  */
 class BusPresenter implements AgentPresenter {
   readonly name = "BusPresenter";
@@ -71,15 +98,19 @@ class BusPresenter implements AgentPresenter {
   present(_agentId: string, output: AgentOutput): void {
     const category = this.getCategoryForOutput(output);
 
+    // Skip user_message - it's now handled by AgentInteractor
+    if (output.type === "user_message") {
+      return;
+    }
+
     // Convert data format based on category
     let data: unknown = output.data;
     if (category === "message") {
       data = this.convertToMessage(output);
     }
-    // Stream, State and Turn layer data formats match SystemEvent expectations
 
     // Build complete SystemEvent with full context
-    // All events from BusPresenter are broadcastable (default true)
+    // All events from BusPresenter are broadcastable (including stream events for frontend)
     const systemEvent: SystemEvent = {
       type: output.type,
       timestamp: output.timestamp,
@@ -97,7 +128,7 @@ class BusPresenter implements AgentPresenter {
 
     this.producer.emit(systemEvent);
 
-    // Persist Message layer events to session
+    // Persist Message layer events to session (except user_message)
     if (category === "message") {
       this.session.addMessage(data as Message).catch((err) => {
         logger.error("Failed to persist message", { error: err, messageType: output.type });
@@ -107,30 +138,13 @@ class BusPresenter implements AgentPresenter {
 
   /**
    * Convert AgentOutput to proper Message type for persistence
-   *
-   * Event data format → Message type format:
-   * - messageId → id
-   * - Add role and subtype fields
-   * - Normalize content structure
    */
   private convertToMessage(output: AgentOutput): Message {
     const eventData = output.data as Record<string, unknown>;
-    // Note: user_message uses 'id' field (UserMessage type), other events use 'messageId'
     const messageId = (eventData.messageId ?? eventData.id) as string;
     const timestamp = (eventData.timestamp as number) || output.timestamp;
 
     switch (output.type) {
-      case "user_message": {
-        const content = eventData.content as string;
-        return {
-          id: messageId,
-          role: "user",
-          subtype: "user",
-          content,
-          timestamp,
-        } as UserMessage;
-      }
-
       case "assistant_message": {
         const content = eventData.content as ContentPart[];
         return {
@@ -144,7 +158,6 @@ class BusPresenter implements AgentPresenter {
 
       case "tool_call_message": {
         const toolCalls = eventData.toolCalls as ToolCallPart[];
-        // ToolCallMessage stores single toolCall, take first one
         const toolCall = toolCalls[0];
         return {
           id: messageId,
@@ -157,13 +170,12 @@ class BusPresenter implements AgentPresenter {
 
       case "tool_result_message": {
         const results = eventData.results as ToolResultPart[];
-        // ToolResultMessage stores single toolResult, take first one
         const toolResult = results[0];
         return {
           id: messageId,
           role: "tool",
           subtype: "tool-result",
-          toolCallId: toolResult.id, // ToolResultPart uses 'id' for tool call reference
+          toolCallId: toolResult.id,
           toolResult,
           timestamp,
         } as ToolResultMessage;
@@ -181,7 +193,7 @@ class BusPresenter implements AgentPresenter {
   private getCategoryForOutput(output: AgentOutput): EventCategory {
     const type = output.type;
 
-    // Stream events - SKIP these, handled by DriveableEvent
+    // Stream events - SKIP these
     if (
       type === "message_start" ||
       type === "message_delta" ||
@@ -216,7 +228,7 @@ class BusPresenter implements AgentPresenter {
 }
 
 /**
- * RuntimeAgent - Full Agent with Engine + Sandbox + Session
+ * RuntimeAgent - Full Agent with Interactor + Driver + Engine + Session
  */
 export class RuntimeAgent implements RuntimeAgentInterface {
   readonly agentId: string;
@@ -226,8 +238,9 @@ export class RuntimeAgent implements RuntimeAgentInterface {
   readonly createdAt: number;
 
   private _lifecycle: AgentLifecycle = "running";
-  private readonly engine: AgentEngine;
+  private readonly interactor: AgentInteractor;
   private readonly driver: BusDriver;
+  private readonly engine: AgentEngine;
   private readonly producer: SystemBusProducer;
   readonly session: Session;
   readonly config: AgentConfig;
@@ -241,17 +254,8 @@ export class RuntimeAgent implements RuntimeAgentInterface {
     this.producer = config.bus.asProducer();
     this.session = config.session;
     this.config = config.config;
-    // Note: sandbox is stored in config but not directly on this instance
-    // It's used during agent creation but not needed after
 
-    // Create Driver (needs both consumer and producer for bidirectional communication)
-    this.driver = new BusDriver(
-      config.bus.asConsumer(),
-      config.bus.asProducer(),
-      { agentId: this.agentId }
-    );
-
-    // Create Presenter (forwards to bus + collects to session)
+    // Create Presenter (forwards to bus + persists to session)
     const presenter = new BusPresenter(
       this.producer,
       config.session,
@@ -260,10 +264,51 @@ export class RuntimeAgent implements RuntimeAgentInterface {
       this.containerId
     );
 
-    // Create Engine (from @agentxjs/agent)
+    // Create Engine (from @agentxjs/agent) - no driver needed for push mode
+    // We use a dummy driver since we're using push-based handleStreamEvent
     this.engine = createAgent({
-      driver: this.driver,
+      driver: {
+        name: "DummyDriver",
+        description: "Placeholder driver for push-based event handling",
+        receive: async function* () {
+          // Not used - events are pushed via handleStreamEvent
+        },
+        interrupt: () => {},
+      },
       presenter,
+    });
+
+    // Create Interactor (handles user input - the "in" side)
+    this.interactor = new AgentInteractor(
+      this.producer,
+      config.session,
+      {
+        agentId: this.agentId,
+        imageId: this.imageId,
+        containerId: this.containerId,
+        sessionId: config.session.sessionId,
+      }
+    );
+
+    // Create Driver (listens for DriveableEvents - the "out" side)
+    // It pushes events to engine.handleStreamEvent
+    this.driver = new BusDriver(
+      config.bus.asConsumer(),
+      {
+        agentId: this.agentId,
+        onStreamEvent: (event) => {
+          logger.debug("BusDriver → Engine.handleStreamEvent", { type: event.type });
+          this.engine.handleStreamEvent(event);
+        },
+        onStreamComplete: (reason) => {
+          logger.debug("Stream completed", { reason, agentId: this.agentId });
+        },
+      }
+    );
+
+    logger.debug("RuntimeAgent created", {
+      agentId: this.agentId,
+      imageId: this.imageId,
     });
   }
 
@@ -271,18 +316,39 @@ export class RuntimeAgent implements RuntimeAgentInterface {
     return this._lifecycle;
   }
 
-  async receive(message: string): Promise<void> {
-    logger.debug("RuntimeAgent.receive called", { agentId: this.agentId, messagePreview: message.substring(0, 50) });
+  /**
+   * Receive a message from user
+   *
+   * @param content - Message content
+   * @param requestId - Request ID for correlation
+   */
+  async receive(content: string, requestId?: string): Promise<void> {
+    logger.debug("RuntimeAgent.receive called", {
+      agentId: this.agentId,
+      contentPreview: content.substring(0, 50),
+      requestId,
+    });
+
     if (this._lifecycle !== "running") {
       throw new Error(`Cannot send message to ${this._lifecycle} agent`);
     }
-    logger.debug("Calling engine.receive", { agentId: this.agentId });
-    await this.engine.receive(message);
-    logger.debug("engine.receive completed", { agentId: this.agentId });
+
+    // Use Interactor to handle user input
+    // This will: build UserMessage, persist, emit to bus
+    // BusDriver will receive DriveableEvents when Claude responds
+    await this.interactor.receive(content, requestId || `req_${Date.now()}`);
+
+    logger.debug("RuntimeAgent.receive completed", { agentId: this.agentId });
   }
 
-  interrupt(): void {
-    this.engine.interrupt();
+  /**
+   * Interrupt current operation
+   */
+  interrupt(requestId?: string): void {
+    logger.debug("RuntimeAgent.interrupt called", { agentId: this.agentId, requestId });
+
+    // Use Interactor to send interrupt
+    this.interactor.interrupt(requestId);
 
     // Emit interrupted event
     this.producer.emit({
@@ -340,6 +406,10 @@ export class RuntimeAgent implements RuntimeAgentInterface {
 
   async destroy(): Promise<void> {
     if (this._lifecycle !== "destroyed") {
+      // Dispose driver (stop listening)
+      this.driver.dispose();
+
+      // Destroy engine
       await this.engine.destroy();
       this._lifecycle = "destroyed";
 

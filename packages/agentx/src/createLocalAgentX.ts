@@ -5,7 +5,7 @@
  * Contains Node.js specific code (runtime, ws server).
  */
 
-import type { AgentX, LocalConfig, Unsubscribe } from "@agentxjs/types/agentx";
+import type { AgentX, LocalConfig } from "@agentxjs/types/agentx";
 import type { SystemEvent } from "@agentxjs/types/event";
 import type { WebSocket as WS, WebSocketServer as WSS } from "ws";
 import { createLogger } from "@agentxjs/common";

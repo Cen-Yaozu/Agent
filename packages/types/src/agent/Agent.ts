@@ -30,6 +30,7 @@
  */
 
 import type { UserMessage } from "./message";
+import type { StreamEvent } from "./event/stream";
 import type { AgentState } from "./AgentState";
 import type { AgentOutputCallback, Unsubscribe } from "./internal/AgentOutputCallback";
 import type { AgentMiddleware } from "./internal/AgentMiddleware";
@@ -115,8 +116,19 @@ export interface AgentEngine {
    * Receive a message from user
    *
    * @param message - String content or UserMessage object
+   * @deprecated Use handleStreamEvent for push-based event processing
    */
   receive(message: string | UserMessage): Promise<void>;
+
+  /**
+   * Handle a stream event from the driver
+   *
+   * This is the push-based API for event processing.
+   * Events are pushed by BusDriver when DriveableEvents arrive.
+   *
+   * @param event - StreamEvent to process through MealyMachine
+   */
+  handleStreamEvent(event: StreamEvent): void;
 
   /**
    * Subscribe to all events

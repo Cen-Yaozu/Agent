@@ -65,15 +65,18 @@ export interface Agent {
    * Send a message to the agent
    *
    * @param message - User message content
+   * @param requestId - Optional request ID for event correlation
    */
-  receive(message: string): Promise<void>;
+  receive(message: string, requestId?: string): Promise<void>;
 
   /**
    * Interrupt current processing
    *
    * Stops the current operation gracefully.
+   *
+   * @param requestId - Optional request ID for event correlation
    */
-  interrupt(): void;
+  interrupt(requestId?: string): void;
 
   // ==================== Lifecycle ====================
 

@@ -1,158 +1,111 @@
 /**
- * BusDriver - AgentDriver that communicates via SystemBus
+ * BusDriver - Listens to DriveableEvents and forwards to Agent
+ *
+ * This is the "out" side of agent communication:
+ * - Subscribes to SystemBus at construction time
+ * - Filters DriveableEvents by agentId (from event context)
+ * - Converts DriveableEvent to StreamEvent
+ * - Forwards to AgentEngine via callback
  *
  * Flow:
  * ```
- * Agent.receive(message)
- *   → BusDriver.receive(message)
- *     → bus.emit({ type: "user_message", data: message })
- *       → Effector → Claude SDK → Receptor
- *         → bus.emit(DriveableEvent)
- *           → BusDriver yields to Agent
+ * ClaudeReceptor emits DriveableEvent (with context.agentId)
+ *   → SystemBus
+ *     → BusDriver filters by agentId
+ *       → Converts to StreamEvent
+ *         → Calls onStreamEvent callback
+ *           → AgentEngine processes
  * ```
  */
 
-import type { AgentDriver, UserMessage, StreamEvent } from "@agentxjs/types/agent";
-import type { SystemBusConsumer, SystemBusProducer, BusEventHandler } from "@agentxjs/types/runtime/internal";
-import type { SystemEvent } from "@agentxjs/types/runtime";
-import type { DriveableEvent } from "@agentxjs/types/runtime";
+import type { StreamEvent } from "@agentxjs/types/agent";
+import type { SystemBusConsumer, BusEventHandler } from "@agentxjs/types/runtime/internal";
+import type { SystemEvent, DriveableEvent } from "@agentxjs/types/runtime";
 import { createLogger } from "@agentxjs/common";
-import { AsyncQueue } from "./AsyncQueue";
 
 const logger = createLogger("runtime/BusDriver");
 
-/** Default timeout in milliseconds (30 seconds) */
-const DEFAULT_TIMEOUT = 30_000;
+/**
+ * Callback for stream events
+ */
+export type StreamEventCallback = (event: StreamEvent) => void;
+
+/**
+ * Callback when stream completes (message_stop or interrupted)
+ */
+export type StreamCompleteCallback = (reason: "message_stop" | "interrupted") => void;
 
 /**
  * BusDriver configuration
  */
 export interface BusDriverConfig {
   agentId: string;
-  generateTurnId?: () => string;
-  /** Request timeout in milliseconds (default: 30000) */
-  timeout?: number;
+  onStreamEvent: StreamEventCallback;
+  onStreamComplete?: StreamCompleteCallback;
 }
 
 /**
- * BusDriver - Communicates with Environment via SystemBus
+ * BusDriver - Event-driven listener for DriveableEvents
  *
- * Uses separate Consumer (for receiving events) and Producer (for sending events).
- * This separation:
- * 1. Clarifies data flow direction
- * 2. Prevents accidental event loops
- * 3. Enables proper race condition handling via AsyncQueue
+ * Subscribes to SystemBus at construction and filters events
+ * by agentId from the event context.
  */
-export class BusDriver implements AgentDriver {
+export class BusDriver {
   readonly name = "BusDriver";
-  readonly description = "Driver that communicates via SystemBus";
+  readonly description = "Driver that listens to SystemBus for DriveableEvents";
 
-  private readonly consumer: SystemBusConsumer;
-  private readonly producer: SystemBusProducer;
   private readonly config: BusDriverConfig;
-  private aborted = false;
+  private readonly unsubscribe: () => void;
 
-  constructor(
-    consumer: SystemBusConsumer,
-    producer: SystemBusProducer,
-    config: BusDriverConfig
-  ) {
-    this.consumer = consumer;
-    this.producer = producer;
+  constructor(consumer: SystemBusConsumer, config: BusDriverConfig) {
     this.config = config;
+
+    logger.debug("BusDriver created, subscribing to bus", {
+      agentId: config.agentId,
+    });
+
+    // Subscribe to all events at construction time
+    this.unsubscribe = consumer.onAny(((event: SystemEvent) => {
+      this.handleEvent(event);
+    }) as BusEventHandler);
   }
 
-  async *receive(message: UserMessage): AsyncIterable<StreamEvent> {
-    logger.info("🔵 BusDriver.receive START", { messageId: message.id, agentId: this.config.agentId });
-    this.aborted = false;
+  /**
+   * Handle incoming event from bus
+   */
+  private handleEvent(event: SystemEvent): void {
+    // Check if this is a DriveableEvent for this agent
+    if (!this.isDriveableEventForThisAgent(event)) {
+      return;
+    }
 
-    // Use AsyncQueue to properly handle producer-consumer race condition
-    // This solves the issue where events might arrive before the consumer is ready
-    const queue = new AsyncQueue<DriveableEvent>();
-    let timedOut = false;
+    const driveableEvent = event as DriveableEvent;
+    logger.debug("BusDriver received DriveableEvent", {
+      type: driveableEvent.type,
+      agentId: this.config.agentId,
+      requestId: (driveableEvent as unknown as { requestId?: string }).requestId,
+    });
 
-    const timeout = this.config.timeout ?? DEFAULT_TIMEOUT;
-    const timeoutId = setTimeout(() => {
-      logger.warn("Request timeout", { timeout, agentId: this.config.agentId });
-      timedOut = true;
-      queue.close();
-    }, timeout);
+    // Convert to StreamEvent and forward
+    const streamEvent = this.toStreamEvent(driveableEvent);
+    this.config.onStreamEvent(streamEvent);
 
-    // Subscribe to events BEFORE emitting user message
-    const unsubscribe = this.consumer.onAny(((event: SystemEvent) => {
-      if (!this.isDriveableEvent(event)) return;
-
-      logger.info("🟢 BusDriver received driveable event", { type: event.type });
-
-      // Clear timeout on first event received
-      clearTimeout(timeoutId);
-
-      if (this.aborted) {
-        queue.close();
-        return;
-      }
-
-      // Push to queue - AsyncQueue handles the race condition properly
-      queue.push(event);
-
-      if (event.type === "message_stop" || event.type === "interrupted") {
-        queue.close();
-      }
-    }) as BusEventHandler);
-
-    try {
-      // Emit user message to bus (using producer)
-      this.producer.emit({
-        type: "user_message",
-        data: message,
-      } as never);
-
-      // Consume from queue - no race condition because AsyncQueue handles it
-      for await (const event of queue) {
-        const streamEvent = this.toStreamEvent(event);
-        logger.info("🟡 BusDriver yielding StreamEvent", { type: streamEvent.type });
-        yield streamEvent;
-
-        if (event.type === "message_stop" || event.type === "interrupted") {
-          logger.info("🔴 BusDriver DONE (message_stop/interrupted)");
-          break;
-        }
-      }
-
-      logger.info("🔴 BusDriver.receive END");
-
-      if (timedOut) {
-        throw new Error(`Request timeout after ${timeout}ms`);
-      }
-    } finally {
-      clearTimeout(timeoutId);
-      unsubscribe();
+    // Notify completion if applicable
+    if (driveableEvent.type === "message_stop") {
+      this.config.onStreamComplete?.("message_stop");
+    } else if (driveableEvent.type === "interrupted") {
+      this.config.onStreamComplete?.("interrupted");
     }
   }
 
-  interrupt(): void {
-    this.aborted = true;
-    this.producer.emit({
-      type: "interrupt",
-      agentId: this.config.agentId,
-    } as never);
-  }
-
-  // Note: generateTurnId reserved for future turnId tracking implementation
-  // private generateTurnId(): string {
-  //   const timestamp = Date.now().toString(36);
-  //   const random = Math.random().toString(36).substring(2, 8);
-  //   return `turn_${timestamp}_${random}`;
-  // }
-
   /**
-   * Check if event is a DriveableEvent from Environment
+   * Check if event is a DriveableEvent for this agent
    *
-   * IMPORTANT: Must check source === "environment" to avoid event loops!
-   * BusPresenter emits events with source === "agent" which should NOT
-   * be processed by BusDriver (they are outputs, not inputs).
+   * Must check:
+   * 1. source === "environment" (from Claude)
+   * 2. context.agentId === this.config.agentId (for this agent)
    */
-  private isDriveableEvent(event: unknown): event is DriveableEvent {
+  private isDriveableEventForThisAgent(event: unknown): event is DriveableEvent {
     const driveableTypes = [
       "message_start",
       "message_delta",
@@ -177,27 +130,36 @@ export class BusDriver implements AgentDriver {
       return false;
     }
 
-    const e = event as { type: string; source?: string };
+    const e = event as {
+      type: string;
+      source?: string;
+      context?: { agentId?: string };
+    };
 
-    // CRITICAL: Only process events from environment, not from agent!
-    // This prevents event loops where BusPresenter's output gets fed back as input.
+    // Must be from environment
     if (e.source !== "environment") {
       return false;
     }
 
-    return driveableTypes.includes(e.type);
+    // Must be a driveable event type
+    if (!driveableTypes.includes(e.type)) {
+      return false;
+    }
+
+    // Must be for this agent (check context.agentId)
+    if (e.context?.agentId !== this.config.agentId) {
+      return false;
+    }
+
+    return true;
   }
 
   /**
-   * Convert DriveableEvent (from environment) to StreamEvent (for agent)
-   *
-   * DriveableEvent has: source, category, intent, timestamp, data
-   * StreamEvent has: type, timestamp, data
+   * Convert DriveableEvent to StreamEvent
    */
   private toStreamEvent(event: DriveableEvent): StreamEvent {
     const { type, timestamp, data } = event;
 
-    // Map DriveableEvent data structure to StreamEvent data structure
     switch (type) {
       case "message_start": {
         const d = data as { message?: { id: string; model: string } };
@@ -229,7 +191,12 @@ export class BusDriver implements AgentDriver {
         };
       }
       case "tool_use_content_block_start": {
-        const d = data as { id?: string; name?: string; toolCallId?: string; toolName?: string };
+        const d = data as {
+          id?: string;
+          name?: string;
+          toolCallId?: string;
+          toolName?: string;
+        };
         return {
           type: "tool_use_start",
           timestamp,
@@ -248,7 +215,13 @@ export class BusDriver implements AgentDriver {
         };
       }
       case "tool_use_content_block_stop": {
-        const d = data as { id?: string; name?: string; toolCallId?: string; toolName?: string; input?: Record<string, unknown> };
+        const d = data as {
+          id?: string;
+          name?: string;
+          toolCallId?: string;
+          toolName?: string;
+          input?: Record<string, unknown>;
+        };
         return {
           type: "tool_use_stop",
           timestamp,
@@ -260,7 +233,12 @@ export class BusDriver implements AgentDriver {
         };
       }
       case "tool_result": {
-        const d = data as { toolUseId?: string; toolCallId?: string; result: unknown; isError?: boolean };
+        const d = data as {
+          toolUseId?: string;
+          toolCallId?: string;
+          result: unknown;
+          isError?: boolean;
+        };
         return {
           type: "tool_result",
           timestamp,
@@ -271,9 +249,26 @@ export class BusDriver implements AgentDriver {
           },
         };
       }
+      case "interrupted": {
+        // interrupted is not part of StreamEvent type, so we convert to message_stop
+        // The MealyMachine will handle this and emit conversation_end
+        return {
+          type: "message_stop",
+          timestamp,
+          data: { stopReason: "end_turn" },  // Use valid StopReason
+        };
+      }
       default:
         // For other events, pass through with minimal transformation
         return { type, timestamp, data } as StreamEvent;
     }
+  }
+
+  /**
+   * Dispose and stop listening
+   */
+  dispose(): void {
+    logger.debug("BusDriver disposing", { agentId: this.config.agentId });
+    this.unsubscribe();
   }
 }

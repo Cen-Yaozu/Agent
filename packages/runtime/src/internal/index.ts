@@ -3,7 +3,8 @@
  */
 
 export { SystemBusImpl } from "./SystemBusImpl";
-export { BusDriver, type BusDriverConfig } from "./BusDriver";
+export { BusDriver, type BusDriverConfig, type StreamEventCallback, type StreamCompleteCallback } from "./BusDriver";
+export { AgentInteractor, type AgentInteractorContext } from "./AgentInteractor";
 export { RuntimeAgent, type RuntimeAgentConfig } from "./RuntimeAgent";
 export { RuntimeSession, type RuntimeSessionConfig } from "./RuntimeSession";
 export { RuntimeSandbox, type RuntimeSandboxConfig } from "./RuntimeSandbox";
