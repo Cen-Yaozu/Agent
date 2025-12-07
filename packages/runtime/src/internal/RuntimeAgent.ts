@@ -10,7 +10,7 @@
 
 import type { Agent as RuntimeAgentInterface, AgentLifecycle, AgentConfig, SystemEvent, EventCategory } from "@agentxjs/types/runtime";
 import type { AgentEngine, AgentPresenter, AgentOutput, Message } from "@agentxjs/types/agent";
-import type { SystemBus, Sandbox, Session } from "@agentxjs/types/runtime/internal";
+import type { SystemBus, SystemBusProducer, Sandbox, Session } from "@agentxjs/types/runtime/internal";
 import { createAgent } from "@agentxjs/agent";
 import { BusDriver } from "./BusDriver";
 
@@ -31,13 +31,15 @@ export interface RuntimeAgentConfig {
  *
  * Converts lightweight EngineEvent (type, timestamp, data) to full SystemEvent
  * by adding source, category, intent, and context.
+ *
+ * Uses SystemBusProducer (write-only) because Presenter only emits events.
  */
 class BusPresenter implements AgentPresenter {
   readonly name = "BusPresenter";
   readonly description = "Forwards AgentOutput to SystemBus and collects messages";
 
   constructor(
-    private readonly bus: SystemBus,
+    private readonly producer: SystemBusProducer,
     private readonly session: Session,
     private readonly agentId: string,
     private readonly containerId: string
@@ -59,7 +61,7 @@ class BusPresenter implements AgentPresenter {
       },
     };
 
-    this.bus.emit(systemEvent);
+    this.producer.emit(systemEvent);
 
     // Collect message events to session
     if (this.isMessageEvent(output)) {
@@ -128,7 +130,7 @@ export class RuntimeAgent implements RuntimeAgentInterface {
   private _lifecycle: AgentLifecycle = "running";
   private readonly engine: AgentEngine;
   private readonly driver: BusDriver;
-  private readonly bus: SystemBus;
+  private readonly producer: SystemBusProducer;
   readonly session: Session;
   readonly config: AgentConfig;
 
@@ -137,18 +139,22 @@ export class RuntimeAgent implements RuntimeAgentInterface {
     this.name = config.config.name ?? `agent-${config.agentId}`;
     this.containerId = config.containerId;
     this.createdAt = Date.now();
-    this.bus = config.bus;
+    this.producer = config.bus.asProducer();
     this.session = config.session;
     this.config = config.config;
     // Note: sandbox is stored in config but not directly on this instance
     // It's used during agent creation but not needed after
 
-    // Create Driver
-    this.driver = new BusDriver(config.bus, { agentId: this.agentId });
+    // Create Driver (needs both consumer and producer for bidirectional communication)
+    this.driver = new BusDriver(
+      config.bus.asConsumer(),
+      config.bus.asProducer(),
+      { agentId: this.agentId }
+    );
 
     // Create Presenter (forwards to bus + collects to session)
     const presenter = new BusPresenter(
-      config.bus,
+      this.producer,
       config.session,
       this.agentId,
       this.containerId
@@ -166,17 +172,20 @@ export class RuntimeAgent implements RuntimeAgentInterface {
   }
 
   async receive(message: string): Promise<void> {
+    console.log("[RuntimeAgent.receive] CALLED with message:", message, "agentId:", this.agentId);
     if (this._lifecycle !== "running") {
       throw new Error(`Cannot send message to ${this._lifecycle} agent`);
     }
+    console.log("[RuntimeAgent.receive] Calling engine.receive");
     await this.engine.receive(message);
+    console.log("[RuntimeAgent.receive] engine.receive completed");
   }
 
   interrupt(): void {
     this.engine.interrupt();
 
     // Emit interrupted event
-    this.bus.emit({
+    this.producer.emit({
       type: "interrupted",
       timestamp: Date.now(),
       source: "agent",
@@ -208,7 +217,7 @@ export class RuntimeAgent implements RuntimeAgentInterface {
     this._lifecycle = "running";
 
     // Emit session_resumed event
-    this.bus.emit({
+    this.producer.emit({
       type: "session_resumed",
       timestamp: Date.now(),
       source: "session",
@@ -233,7 +242,7 @@ export class RuntimeAgent implements RuntimeAgentInterface {
       this._lifecycle = "destroyed";
 
       // Emit session_destroyed event
-      this.bus.emit({
+      this.producer.emit({
         type: "session_destroyed",
         timestamp: Date.now(),
         source: "session",

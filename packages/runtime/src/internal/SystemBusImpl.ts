@@ -6,6 +6,8 @@
 
 import type {
   SystemBus,
+  SystemBusProducer,
+  SystemBusConsumer,
   BusEventHandler,
   SubscribeOptions,
   Unsubscribe,
@@ -40,6 +42,10 @@ export class SystemBusImpl implements SystemBus {
   private subscriptions: Subscription[] = [];
   private nextId = 0;
   private isDestroyed = false;
+
+  // Cached restricted views
+  private producerView: SystemBusProducer | null = null;
+  private consumerView: SystemBusConsumer | null = null;
 
   constructor() {
     this.subject.subscribe((event) => {
@@ -204,5 +210,35 @@ export class SystemBusImpl implements SystemBus {
 
   private removeSubscription(id: number): void {
     this.subscriptions = this.subscriptions.filter((s) => s.id !== id);
+  }
+
+  /**
+   * Get a read-only consumer view (only subscribe methods)
+   */
+  asConsumer(): SystemBusConsumer {
+    if (!this.consumerView) {
+      this.consumerView = {
+        on: this.on.bind(this),
+        onAny: this.onAny.bind(this),
+        once: this.once.bind(this),
+        onCommand: this.onCommand.bind(this),
+        request: this.request.bind(this),
+      };
+    }
+    return this.consumerView;
+  }
+
+  /**
+   * Get a write-only producer view (only emit methods)
+   */
+  asProducer(): SystemBusProducer {
+    if (!this.producerView) {
+      this.producerView = {
+        emit: this.emit.bind(this),
+        emitBatch: this.emitBatch.bind(this),
+        emitCommand: this.emitCommand.bind(this),
+      };
+    }
+    return this.producerView;
   }
 }

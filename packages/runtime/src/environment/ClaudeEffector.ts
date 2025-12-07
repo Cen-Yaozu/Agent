@@ -4,7 +4,7 @@
  * Subscribes to user_message events on SystemBus and sends to Claude SDK.
  */
 
-import type { Effector, SystemBus } from "@agentxjs/types/runtime/internal";
+import type { Effector, SystemBusConsumer } from "@agentxjs/types/runtime/internal";
 import type { UserMessage } from "@agentxjs/types/agent";
 import {
   query,
@@ -41,6 +41,8 @@ export interface ClaudeEffectorConfig {
 
 /**
  * ClaudeEffector - Subscribes to SystemBus and sends to Claude SDK
+ *
+ * Uses SystemBusConsumer (read-only) because Effector only subscribes to events.
  */
 export class ClaudeEffector implements Effector {
   private readonly config: ClaudeEffectorConfig;
@@ -58,19 +60,19 @@ export class ClaudeEffector implements Effector {
   }
 
   /**
-   * Subscribe to SystemBus
+   * Connect to SystemBus consumer to subscribe to events
    */
-  subscribe(bus: SystemBus): void {
-    logger.debug("ClaudeEffector subscribing to SystemBus");
+  connect(consumer: SystemBusConsumer): void {
+    logger.debug("ClaudeEffector connected to SystemBusConsumer");
 
     // Listen for user_message events
-    bus.on("user_message", async (event) => {
+    consumer.on("user_message", async (event) => {
       const message = (event as { type: string; data: UserMessage }).data;
       await this.send(message);
     });
 
     // Listen for interrupt events
-    bus.on("interrupt", () => {
+    consumer.on("interrupt", () => {
       this.interrupt();
     });
   }

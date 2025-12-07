@@ -84,8 +84,8 @@ export class RuntimeImpl implements Runtime {
       });
     }
     logger.info("Connecting Environment to bus");
-    this.environment.receptor.emit(this.bus);
-    this.environment.effector.subscribe(this.bus);
+    this.environment.receptor.connect(this.bus.asProducer());
+    this.environment.effector.connect(this.bus.asConsumer());
 
     // Create CommandHandler to handle command events
     logger.info("Creating CommandHandler");
@@ -143,6 +143,14 @@ export class RuntimeImpl implements Runtime {
     timeout?: number
   ): Promise<ResponseEventFor<T>> {
     return this.bus.request(type, data, timeout);
+  }
+
+  asConsumer() {
+    return this.bus.asConsumer();
+  }
+
+  asProducer() {
+    return this.bus.asProducer();
   }
 
   destroy(): void {

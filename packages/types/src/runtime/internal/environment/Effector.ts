@@ -24,14 +24,16 @@
  * @see issues/030-ecosystem-architecture.md
  */
 
-import type { SystemBus } from "../event/SystemBus";
+import type { SystemBusConsumer } from "../event/SystemBusConsumer";
 
 /**
  * Effector - Subscribes to SystemBus and acts upon external world
  */
 export interface Effector {
   /**
-   * Subscribe to SystemBus
+   * Connect to SystemBus consumer to subscribe to events
+   *
+   * Effector only needs Consumer (read-only) because it only subscribes to events.
    */
-  subscribe(bus: SystemBus): void;
+  connect(consumer: SystemBusConsumer): void;
 }

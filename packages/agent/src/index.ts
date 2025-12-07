@@ -31,6 +31,7 @@
 // ============================================================================
 
 export { createAgent } from "./createAgent";
+export { AgentStateMachine } from "./AgentStateMachine";
 export type { AgentEngine, CreateAgentOptions } from "@agentxjs/types/agent";
 
 // ============================================================================

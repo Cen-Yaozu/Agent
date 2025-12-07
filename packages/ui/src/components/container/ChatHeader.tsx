@@ -26,7 +26,7 @@ export interface ChatHeaderProps {
   /**
    * Current agent status
    */
-  status?: "idle" | "thinking" | "responding" | "tool_executing";
+  status?: "idle" | "queued" | "thinking" | "responding" | "tool_executing" | "error";
   /**
    * Number of messages in conversation
    */

@@ -13,7 +13,7 @@
  * ```
  */
 
-import type { Receptor, SystemBus } from "@agentxjs/types/runtime/internal";
+import type { Receptor, SystemBusProducer } from "@agentxjs/types/runtime/internal";
 import type {
   DriveableEvent,
   MessageStartEvent,
@@ -29,17 +29,19 @@ const logger = createLogger("ecosystem/ClaudeReceptor");
 
 /**
  * ClaudeReceptor - Perceives Claude SDK and emits DriveableEvents to SystemBus
+ *
+ * Uses SystemBusProducer (write-only) because Receptor only emits events.
  */
 export class ClaudeReceptor implements Receptor {
-  private bus: SystemBus | null = null;
+  private producer: SystemBusProducer | null = null;
   readonly responseSubject = new Subject<SDKPartialAssistantMessage>();
 
   /**
-   * Start emitting events to SystemBus
+   * Connect to SystemBus producer to emit events
    */
-  emit(bus: SystemBus): void {
-    this.bus = bus;
-    logger.debug("ClaudeReceptor connected to SystemBus");
+  connect(producer: SystemBusProducer): void {
+    this.producer = producer;
+    logger.debug("ClaudeReceptor connected to SystemBusProducer");
 
     // Subscribe to SDK responses and emit to bus
     this.responseSubject.subscribe({
@@ -128,8 +130,8 @@ export class ClaudeReceptor implements Receptor {
   }
 
   private emitToBus(event: DriveableEvent): void {
-    if (this.bus) {
-      this.bus.emit(event);
+    if (this.producer) {
+      this.producer.emit(event);
     }
   }
 }

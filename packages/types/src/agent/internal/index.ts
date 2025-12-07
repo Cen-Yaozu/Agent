@@ -13,3 +13,6 @@ export type { AgentInterceptor, AgentInterceptorNext } from "./AgentInterceptor"
 
 // Event handling (also re-exported from public for convenience)
 export type { AgentOutputCallback, AgentEventHandler, Unsubscribe } from "./AgentOutputCallback";
+
+// State Machine
+export type { AgentStateMachine } from "./AgentStateMachine";

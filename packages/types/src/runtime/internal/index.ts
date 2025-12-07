@@ -91,6 +91,8 @@ export type {
   SubscribeOptions,
   Unsubscribe,
 } from "./event/SystemBus";
+export type { SystemBusProducer } from "./event/SystemBusProducer";
+export type { SystemBusConsumer } from "./event/SystemBusConsumer";
 
 // ============================================================================
 // Event Handler

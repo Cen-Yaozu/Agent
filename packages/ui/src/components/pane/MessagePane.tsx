@@ -90,13 +90,42 @@ export interface MessagePaneProps {
 }
 
 /**
+ * Extract text from ContentPart array
+ */
+const extractTextFromContentParts = (content: unknown): string | null => {
+  if (!Array.isArray(content)) return null;
+
+  const textParts = content
+    .filter(
+      (part): part is { type: string; text: string } =>
+        typeof part === "object" &&
+        part !== null &&
+        "type" in part &&
+        part.type === "text" &&
+        "text" in part &&
+        typeof part.text === "string"
+    )
+    .map((part) => part.text);
+
+  return textParts.length > 0 ? textParts.join("\n") : null;
+};
+
+/**
  * Default content renderer
  */
 const defaultRenderContent = (content: unknown): React.ReactNode => {
+  // Handle string content
   if (typeof content === "string") {
     return <MarkdownText>{content}</MarkdownText>;
   }
-  // For non-string content, render as JSON
+
+  // Handle ContentPart[] array (e.g., [{ type: "text", text: "..." }])
+  const extractedText = extractTextFromContentParts(content);
+  if (extractedText !== null) {
+    return <MarkdownText>{extractedText}</MarkdownText>;
+  }
+
+  // For other non-string content, render as JSON
   return (
     <pre className="text-xs bg-muted/50 p-2 rounded overflow-x-auto">
       {JSON.stringify(content, null, 2)}

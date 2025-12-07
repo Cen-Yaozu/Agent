@@ -16,7 +16,6 @@ import type {
   Unsubscribe,
   UserMessage,
   MessageQueue,
-  StateChange,
   StateChangeHandler,
   EventHandlerMap,
   ReactHandlerMap,
@@ -27,6 +26,11 @@ import type {
   AgentMiddleware,
   AgentInterceptor,
 } from "@agentxjs/types/agent/internal";
+import { MealyMachine } from "./engine/MealyMachine";
+import { AgentStateMachine } from "./AgentStateMachine";
+import { createLogger } from "@agentxjs/common";
+
+const logger = createLogger("agent/SimpleAgent");
 
 /**
  * Generate unique agent ID
@@ -70,15 +74,15 @@ class SimpleAgent implements AgentEngine {
   readonly createdAt: number;
   readonly messageQueue: MessageQueue;
 
-  private _state: AgentState = "idle";
   private readonly _messageQueue = new SimpleMessageQueue();
 
   private readonly driver: CreateAgentOptions["driver"];
   private readonly presenter: CreateAgentOptions["presenter"];
+  private readonly machine: MealyMachine;
+  private readonly stateMachine: AgentStateMachine;
 
   private readonly handlers: Set<AgentOutputCallback> = new Set();
   private readonly typeHandlers: Map<string, Set<AgentOutputCallback>> = new Map();
-  private readonly stateChangeHandlers: Set<StateChangeHandler> = new Set();
   private readonly readyHandlers: Set<() => void> = new Set();
   private readonly destroyHandlers: Set<() => void> = new Set();
   private readonly middlewares: AgentMiddleware[] = [];
@@ -92,28 +96,18 @@ class SimpleAgent implements AgentEngine {
     this.messageQueue = this._messageQueue;
     this.driver = options.driver;
     this.presenter = options.presenter;
+    this.machine = new MealyMachine();
+    this.stateMachine = new AgentStateMachine();
   }
 
   get state(): AgentState {
-    return this._state;
+    return this.stateMachine.state;
   }
 
-  private setState(newState: AgentState): void {
-    if (newState !== this._state) {
-      const prev = this._state;
-      this._state = newState;
-      const change: StateChange = { prev, current: newState };
-      for (const handler of this.stateChangeHandlers) {
-        try {
-          handler(change);
-        } catch (e) {
-          console.error("State change handler error:", e);
-        }
-      }
-    }
-  }
 
   async receive(message: string | UserMessage): Promise<void> {
+    console.log("[SimpleAgent.receive] CALLED with message:", typeof message === "string" ? message : message.content);
+
     const userMessage: UserMessage =
       typeof message === "string"
         ? {
@@ -128,6 +122,8 @@ class SimpleAgent implements AgentEngine {
     // Queue the message
     this._messageQueue.enqueue(userMessage);
 
+    console.log("[SimpleAgent.receive] Message queued, isProcessing:", this.isProcessing);
+
     // If already processing, just queue and return a promise that resolves when this message completes
     if (this.isProcessing) {
       return new Promise((resolve, reject) => {
@@ -138,6 +134,7 @@ class SimpleAgent implements AgentEngine {
     }
 
     // Start processing
+    console.log("[SimpleAgent.receive] Starting processQueue");
     await this.processQueue();
   }
 
@@ -145,9 +142,13 @@ class SimpleAgent implements AgentEngine {
     if (this.isProcessing) return;
     this.isProcessing = true;
 
+    console.log("[SimpleAgent.processQueue] Starting, queue size:", this._messageQueue.length);
+
     while (!this._messageQueue.isEmpty) {
       const message = this._messageQueue.dequeue();
       if (!message) break;
+
+      console.log("[SimpleAgent.processQueue] Processing message:", message.id);
 
       try {
         await this.processMessage(message);
@@ -165,9 +166,12 @@ class SimpleAgent implements AgentEngine {
     }
 
     this.isProcessing = false;
+    console.log("[SimpleAgent.processQueue] Finished");
   }
 
   private async processMessage(message: UserMessage): Promise<void> {
+    console.log("[SimpleAgent.processMessage] START, message:", message.id);
+
     // Run through middleware chain
     let processedMessage = message;
     for (const middleware of this.middlewares) {
@@ -178,34 +182,42 @@ class SimpleAgent implements AgentEngine {
       });
       if (!nextCalled) {
         // Middleware blocked the message
+        console.log("[SimpleAgent.processMessage] Middleware blocked message");
         return;
       }
     }
 
-    // Process with driver
-    this.setState("thinking");
+    console.log("[SimpleAgent.processMessage] Getting driver stream...");
+    const driverStream = this.driver.receive(processedMessage);
+    console.log("[SimpleAgent.processMessage] Driver stream:", driverStream);
 
     try {
-      for await (const event of this.driver.receive(processedMessage)) {
-        // Update state based on event type
-        if (event.type === "text_delta") {
-          this.setState("responding");
-        } else if (event.type === "tool_use_start") {
-          this.setState("planning_tool");
-        } else if (event.type === "tool_use_stop") {
-          // Tool call complete, waiting for tool result
-          this.setState("awaiting_tool_result");
-        } else if (event.type === "tool_result") {
-          // Tool result received, back to thinking
-          this.setState("thinking");
-        }
+      console.log("[SimpleAgent.processMessage] Starting for-await loop...");
+      for await (const streamEvent of driverStream) {
+        logger.info("✅ Received streamEvent", { type: streamEvent.type });
 
-        // Emit event
-        this.emitOutput(event);
+        // Process through MealyMachine to get all outputs
+        // (stream + message + state + turn events)
+        const outputs = this.machine.process(this.agentId, streamEvent);
+
+        logger.info("✅ MealyMachine outputs", { count: outputs.length, types: outputs.map(o => o.type) });
+
+        // Emit all outputs
+        for (const output of outputs) {
+          // Let StateMachine process StateEvents first
+          this.stateMachine.process(output);
+
+          // Emit output to presenter and handlers
+          this.emitOutput(output);
+        }
       }
-    } finally {
-      this.setState("idle");
+      console.log("[SimpleAgent.processMessage] For-await loop completed");
+    } catch (error) {
+      console.log("[SimpleAgent.processMessage] ERROR:", error);
+      // On error, state will be reset by error_occurred StateEvent
+      throw error;
     }
+    console.log("[SimpleAgent.processMessage] END");
   }
 
   private emitOutput(output: AgentOutput): void {
@@ -295,8 +307,7 @@ class SimpleAgent implements AgentEngine {
   }
 
   onStateChange(handler: StateChangeHandler): Unsubscribe {
-    this.stateChangeHandlers.add(handler);
-    return () => this.stateChangeHandlers.delete(handler);
+    return this.stateMachine.onStateChange(handler);
   }
 
   react(handlers: ReactHandlerMap): Unsubscribe {
@@ -353,16 +364,16 @@ class SimpleAgent implements AgentEngine {
   }
 
   interrupt(): void {
-    if (this._state === "idle") {
+    if (this.state === "idle") {
       return;
     }
     this.driver.interrupt();
-    this.setState("idle");
+    // State will be updated by conversation_interrupted StateEvent from driver
   }
 
   async destroy(): Promise<void> {
     // If processing, interrupt first
-    if (this._state !== "idle") {
+    if (this.state !== "idle") {
       this.interrupt();
     }
 
@@ -375,10 +386,15 @@ class SimpleAgent implements AgentEngine {
       }
     }
 
+    // Clear MealyMachine state for this agent
+    this.machine.clearState(this.agentId);
+
+    // Reset StateMachine
+    this.stateMachine.reset();
+
     this._messageQueue.clear();
     this.handlers.clear();
     this.typeHandlers.clear();
-    this.stateChangeHandlers.clear();
     this.readyHandlers.clear();
     this.destroyHandlers.clear();
     this.middlewares.length = 0;

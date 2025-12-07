@@ -24,14 +24,16 @@
  * @see issues/030-ecosystem-architecture.md
  */
 
-import type { SystemBus } from "../event/SystemBus";
+import type { SystemBusProducer } from "../event/SystemBusProducer";
 
 /**
  * Receptor - Perceives external world and emits events to SystemBus
  */
 export interface Receptor {
   /**
-   * Emit events to SystemBus
+   * Connect to SystemBus producer to emit events
+   *
+   * Receptor only needs Producer (write-only) because it only emits events.
    */
-  emit(bus: SystemBus): void;
+  connect(producer: SystemBusProducer): void;
 }

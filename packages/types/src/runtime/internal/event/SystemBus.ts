@@ -45,6 +45,8 @@ import type {
   ResponseEventFor,
   RequestDataFor,
 } from "~/event/command";
+import type { SystemBusProducer } from "./SystemBusProducer";
+import type { SystemBusConsumer } from "./SystemBusConsumer";
 
 /**
  * Unsubscribe function type.
@@ -80,6 +82,9 @@ export interface SubscribeOptions<E extends SystemEvent = SystemEvent> {
 
 /**
  * SystemBus interface - Central event bus for ecosystem communication.
+ *
+ * Extends both Producer and Consumer interfaces for internal use.
+ * External components should use restricted views via asProducer/asConsumer.
  */
 export interface SystemBus {
   /**
@@ -210,6 +215,46 @@ export interface SystemBus {
     data: RequestDataFor<T>,
     timeout?: number
   ): Promise<ResponseEventFor<T>>;
+
+  /**
+   * Get a read-only consumer view of the bus.
+   *
+   * Use this to safely expose event subscription to external code
+   * without allowing them to emit events.
+   *
+   * @example
+   * ```typescript
+   * class BusDriver {
+   *   constructor(consumer: SystemBusConsumer) {
+   *     // Can only subscribe, cannot emit
+   *     consumer.on('text_delta', ...);
+   *   }
+   * }
+   * ```
+   *
+   * @returns SystemBusConsumer - Read-only view
+   */
+  asConsumer(): SystemBusConsumer;
+
+  /**
+   * Get a write-only producer view of the bus.
+   *
+   * Use this to give components the ability to emit events
+   * without exposing subscription capabilities.
+   *
+   * @example
+   * ```typescript
+   * class ClaudeReceptor {
+   *   constructor(producer: SystemBusProducer) {
+   *     // Can only emit, cannot subscribe
+   *     producer.emit({ type: 'text_delta', ... });
+   *   }
+   * }
+   * ```
+   *
+   * @returns SystemBusProducer - Write-only view
+   */
+  asProducer(): SystemBusProducer;
 
   /**
    * Destroy the bus and clean up resources.

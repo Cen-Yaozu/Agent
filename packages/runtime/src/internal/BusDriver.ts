@@ -13,9 +13,11 @@
  */
 
 import type { AgentDriver, UserMessage, StreamEvent } from "@agentxjs/types/agent";
-import type { SystemBus } from "@agentxjs/types/runtime/internal";
+import type { SystemBusConsumer, SystemBusProducer, BusEventHandler } from "@agentxjs/types/runtime/internal";
+import type { SystemEvent } from "@agentxjs/types/runtime";
 import type { DriveableEvent } from "@agentxjs/types/runtime";
 import { createLogger } from "@agentxjs/common";
+import { AsyncQueue } from "./AsyncQueue";
 
 const logger = createLogger("runtime/BusDriver");
 
@@ -34,92 +36,90 @@ export interface BusDriverConfig {
 
 /**
  * BusDriver - Communicates with Environment via SystemBus
+ *
+ * Uses separate Consumer (for receiving events) and Producer (for sending events).
+ * This separation:
+ * 1. Clarifies data flow direction
+ * 2. Prevents accidental event loops
+ * 3. Enables proper race condition handling via AsyncQueue
  */
 export class BusDriver implements AgentDriver {
   readonly name = "BusDriver";
   readonly description = "Driver that communicates via SystemBus";
 
-  private readonly bus: SystemBus;
+  private readonly consumer: SystemBusConsumer;
+  private readonly producer: SystemBusProducer;
   private readonly config: BusDriverConfig;
   private aborted = false;
 
-  constructor(bus: SystemBus, config: BusDriverConfig) {
-    this.bus = bus;
+  constructor(
+    consumer: SystemBusConsumer,
+    producer: SystemBusProducer,
+    config: BusDriverConfig
+  ) {
+    this.consumer = consumer;
+    this.producer = producer;
     this.config = config;
   }
 
   async *receive(message: UserMessage): AsyncIterable<StreamEvent> {
+    logger.info("🔵 BusDriver.receive START", { messageId: message.id, agentId: this.config.agentId });
     this.aborted = false;
 
-    const events: DriveableEvent[] = [];
-    let resolveNext: ((value: IteratorResult<DriveableEvent>) => void) | null = null;
-    let done = false;
+    // Use AsyncQueue to properly handle producer-consumer race condition
+    // This solves the issue where events might arrive before the consumer is ready
+    const queue = new AsyncQueue<DriveableEvent>();
     let timedOut = false;
 
     const timeout = this.config.timeout ?? DEFAULT_TIMEOUT;
     const timeoutId = setTimeout(() => {
       logger.warn("Request timeout", { timeout, agentId: this.config.agentId });
       timedOut = true;
-      done = true;
-      if (resolveNext) {
-        resolveNext({ done: true, value: undefined as never });
-      }
+      queue.close();
     }, timeout);
 
-    const unsubscribe = this.bus.onAny((event) => {
+    // Subscribe to events BEFORE emitting user message
+    const unsubscribe = this.consumer.onAny(((event: SystemEvent) => {
       if (!this.isDriveableEvent(event)) return;
+
+      logger.info("🟢 BusDriver received driveable event", { type: event.type });
 
       // Clear timeout on first event received
       clearTimeout(timeoutId);
 
       if (this.aborted) {
-        done = true;
-        if (resolveNext) {
-          resolveNext({ done: true, value: undefined as never });
-        }
+        queue.close();
         return;
       }
 
-      if (event.type === "message_stop" || event.type === "interrupted") {
-        events.push(event);
-        done = true;
-      } else {
-        events.push(event);
-      }
+      // Push to queue - AsyncQueue handles the race condition properly
+      queue.push(event);
 
-      if (resolveNext) {
-        const e = events.shift();
-        if (e) {
-          resolveNext({ done: false, value: e });
-          resolveNext = null;
-        } else if (done) {
-          resolveNext({ done: true, value: undefined as never });
-          resolveNext = null;
-        }
+      if (event.type === "message_stop" || event.type === "interrupted") {
+        queue.close();
       }
-    });
+    }) as BusEventHandler);
 
     try {
-      // Emit user message to bus
-      this.bus.emit({
+      // Emit user message to bus (using producer)
+      this.producer.emit({
         type: "user_message",
         data: message,
       } as never);
 
-      while (!done || events.length > 0) {
-        if (events.length > 0) {
-          const event = events.shift()!;
-          // Convert DriveableEvent to StreamEvent format
-          yield this.toStreamEvent(event);
-          if (event.type === "message_stop" || event.type === "interrupted") {
-            break;
-          }
-        } else if (!done) {
-          await new Promise<IteratorResult<DriveableEvent>>((resolve) => {
-            resolveNext = resolve;
-          });
+      // Consume from queue - no race condition because AsyncQueue handles it
+      for await (const event of queue) {
+        const streamEvent = this.toStreamEvent(event);
+        logger.info("🟡 BusDriver yielding StreamEvent", { type: streamEvent.type });
+        yield streamEvent;
+
+        if (event.type === "message_stop" || event.type === "interrupted") {
+          logger.info("🔴 BusDriver DONE (message_stop/interrupted)");
+          break;
         }
       }
+
+      logger.info("🔴 BusDriver.receive END");
 
       if (timedOut) {
         throw new Error(`Request timeout after ${timeout}ms`);
@@ -132,7 +132,7 @@ export class BusDriver implements AgentDriver {
 
   interrupt(): void {
     this.aborted = true;
-    this.bus.emit({
+    this.producer.emit({
       type: "interrupt",
       agentId: this.config.agentId,
     } as never);
@@ -145,6 +145,13 @@ export class BusDriver implements AgentDriver {
   //   return `turn_${timestamp}_${random}`;
   // }
 
+  /**
+   * Check if event is a DriveableEvent from Environment
+   *
+   * IMPORTANT: Must check source === "environment" to avoid event loops!
+   * BusPresenter emits events with source === "agent" which should NOT
+   * be processed by BusDriver (they are outputs, not inputs).
+   */
   private isDriveableEvent(event: unknown): event is DriveableEvent {
     const driveableTypes = [
       "message_start",
@@ -160,13 +167,25 @@ export class BusDriver implements AgentDriver {
       "tool_result",
       "interrupted",
     ];
-    return (
-      event !== null &&
-      typeof event === "object" &&
-      "type" in event &&
-      typeof (event as { type: unknown }).type === "string" &&
-      driveableTypes.includes((event as { type: string }).type)
-    );
+
+    if (
+      event === null ||
+      typeof event !== "object" ||
+      !("type" in event) ||
+      typeof (event as { type: unknown }).type !== "string"
+    ) {
+      return false;
+    }
+
+    const e = event as { type: string; source?: string };
+
+    // CRITICAL: Only process events from environment, not from agent!
+    // This prevents event loops where BusPresenter's output gets fed back as input.
+    if (e.source !== "environment") {
+      return false;
+    }
+
+    return driveableTypes.includes(e.type);
   }
 
   /**

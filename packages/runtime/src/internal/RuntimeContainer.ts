@@ -121,7 +121,7 @@ export class RuntimeContainer implements Container {
       agentId,
       containerId: this.containerId,
       repository: this.context.persistence.sessions,
-      bus: this.context.bus,
+      producer: this.context.bus.asProducer(),
     });
     await session.initialize();
 
@@ -182,7 +182,7 @@ export class RuntimeContainer implements Container {
       agentId,
       containerId: this.containerId,
       repository: this.context.persistence.sessions,
-      bus: this.context.bus,
+      producer: this.context.bus.asProducer(),
     });
     await session.initialize();
 

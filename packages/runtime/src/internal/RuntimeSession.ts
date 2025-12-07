@@ -4,7 +4,7 @@
  * Collects messages from Agent and persists to storage.
  */
 
-import type { Session, SystemBus, SessionRepository, SessionRecord } from "@agentxjs/types/runtime/internal";
+import type { Session, SystemBusProducer, SessionRepository, SessionRecord } from "@agentxjs/types/runtime/internal";
 import type { Message } from "@agentxjs/types/agent";
 
 /**
@@ -15,7 +15,8 @@ export interface RuntimeSessionConfig {
   agentId: string;
   containerId: string;
   repository: SessionRepository;
-  bus: SystemBus;
+  /** Producer for emitting session lifecycle events */
+  producer: SystemBusProducer;
 }
 
 /**
@@ -28,7 +29,7 @@ export class RuntimeSession implements Session {
   readonly createdAt: number;
 
   private readonly repository: SessionRepository;
-  private readonly bus: SystemBus;
+  private readonly producer: SystemBusProducer;
 
   constructor(config: RuntimeSessionConfig) {
     this.sessionId = config.sessionId;
@@ -36,7 +37,7 @@ export class RuntimeSession implements Session {
     this.containerId = config.containerId;
     this.createdAt = Date.now();
     this.repository = config.repository;
-    this.bus = config.bus;
+    this.producer = config.producer;
   }
 
   /**
@@ -53,7 +54,7 @@ export class RuntimeSession implements Session {
     await this.repository.saveSession(record);
 
     // Emit session_created event
-    this.bus.emit({
+    this.producer.emit({
       type: "session_created",
       timestamp: this.createdAt,
       source: "session",
@@ -77,7 +78,7 @@ export class RuntimeSession implements Session {
     await this.repository.addMessage(this.sessionId, message);
 
     // Emit message_persisted event
-    this.bus.emit({
+    this.producer.emit({
       type: "message_persisted",
       timestamp: Date.now(),
       source: "session",
