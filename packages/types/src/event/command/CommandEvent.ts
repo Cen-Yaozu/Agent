@@ -362,6 +362,29 @@ export interface ImageDeleteResponse extends BaseCommandResponse<"image_delete_r
   error?: string;
 }> {}
 
+/**
+ * Request to get messages for an image
+ */
+export interface ImageMessagesRequest extends BaseCommandRequest<"image_messages_request", {
+  requestId: string;
+  imageId: string;
+}> {}
+
+/**
+ * Response to image messages request
+ */
+export interface ImageMessagesResponse extends BaseCommandResponse<"image_messages_response", {
+  requestId: string;
+  imageId: string;
+  messages: Array<{
+    id: string;
+    role: "user" | "assistant" | "tool_call" | "tool_result";
+    content: unknown;
+    timestamp: number;
+  }>;
+  error?: string;
+}> {}
+
 // ============================================================================
 // Union Types
 // ============================================================================
@@ -388,7 +411,8 @@ export type CommandRequest =
   | ImageUpdateRequest
   | ImageListRequest
   | ImageGetRequest
-  | ImageDeleteRequest;
+  | ImageDeleteRequest
+  | ImageMessagesRequest;
 
 /**
  * All Command response events
@@ -412,7 +436,8 @@ export type CommandResponse =
   | ImageUpdateResponse
   | ImageListResponse
   | ImageGetResponse
-  | ImageDeleteResponse;
+  | ImageDeleteResponse
+  | ImageMessagesResponse;
 
 /**
  * All Command events (requests + responses)
@@ -496,6 +521,8 @@ export interface CommandEventMap {
   "image_get_response": ImageGetResponse;
   "image_delete_request": ImageDeleteRequest;
   "image_delete_response": ImageDeleteResponse;
+  "image_messages_request": ImageMessagesRequest;
+  "image_messages_response": ImageMessagesResponse;
 }
 
 /**
@@ -518,6 +545,7 @@ export interface CommandRequestResponseMap {
   "image_list_request": "image_list_response";
   "image_get_request": "image_get_response";
   "image_delete_request": "image_delete_response";
+  "image_messages_request": "image_messages_response";
 }
 
 /**

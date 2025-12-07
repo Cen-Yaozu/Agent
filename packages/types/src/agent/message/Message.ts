@@ -1,6 +1,5 @@
 import type { UserMessage } from "./UserMessage";
 import type { AssistantMessage } from "./AssistantMessage";
-import type { SystemMessage } from "./SystemMessage";
 import type { ToolCallMessage } from "./ToolCallMessage";
 import type { ToolResultMessage } from "./ToolResultMessage";
 
@@ -13,7 +12,7 @@ import type { ToolResultMessage } from "./ToolResultMessage";
  * Note: "error" has been removed. Errors are now handled via independent
  * ErrorEvent (see ~/event/error) which is transportable via SSE.
  */
-export type MessageSubtype = "user" | "assistant" | "tool-call" | "tool-result" | "system";
+export type MessageSubtype = "user" | "assistant" | "tool-call" | "tool-result";
 
 /**
  * Message
@@ -50,6 +49,5 @@ export type MessageSubtype = "user" | "assistant" | "tool-call" | "tool-result" 
 export type Message =
   | UserMessage
   | AssistantMessage
-  | SystemMessage
   | ToolCallMessage
   | ToolResultMessage;

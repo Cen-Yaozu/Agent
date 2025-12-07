@@ -90,6 +90,7 @@ export type {
   ImagePart,
   ToolCallPart,
   ToolResultPart,
+  ToolResultOutput,
 } from "./message";
 
 // Event types

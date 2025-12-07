@@ -51,7 +51,6 @@
 export type { Message, MessageSubtype } from "./Message";
 export type { UserMessage } from "./UserMessage";
 export type { AssistantMessage } from "./AssistantMessage";
-export type { SystemMessage } from "./SystemMessage";
 export type { ToolCallMessage } from "./ToolCallMessage";
 export type { ToolResultMessage } from "./ToolResultMessage";
 

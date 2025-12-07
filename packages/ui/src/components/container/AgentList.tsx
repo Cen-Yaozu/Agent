@@ -29,7 +29,7 @@ import { MessageSquare } from "lucide-react";
 import { ListPane, type ListPaneItem } from "~/components/pane";
 import { useImages } from "~/hooks";
 import { AgentLogo } from "~/components/element/AgentLogo";
-import { Badge } from "~/components/element/Badge";
+import { cn } from "~/utils";
 
 export interface AgentListProps {
   /**
@@ -101,12 +101,13 @@ export function AgentList({
       title: img.name || "Untitled",
       leading: <AgentLogo className="w-3 h-3" />,
       trailing: (
-        <Badge
-          variant={img.online ? "default" : "secondary"}
-          className="text-xs px-1 py-0"
-        >
-          {img.online ? "Online" : "Offline"}
-        </Badge>
+        <span
+          className={cn(
+            "w-2 h-2 rounded-full",
+            img.online ? "bg-green-500" : "bg-gray-400"
+          )}
+          title={img.online ? "Online" : "Offline"}
+        />
       ),
       timestamp: img.updatedAt || img.createdAt,
     }));

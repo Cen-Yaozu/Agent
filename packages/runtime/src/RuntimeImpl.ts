@@ -340,6 +340,40 @@ export class RuntimeImpl implements Runtime {
           logger.info("Image deleted via RuntimeOps", { imageId });
         }
       },
+      getImageMessages: async (imageId: string) => {
+        logger.debug("Getting messages for image", { imageId });
+        const image = await RuntimeImage.load(imageId, this.createImageContext());
+        if (!image) {
+          throw new Error(`Image not found: ${imageId}`);
+        }
+
+        const messages = await image.getMessages();
+        logger.info("Raw messages from storage", { imageId, count: messages.length, firstMessage: messages[0] });
+        return messages.map(m => {
+          // Extract content based on message subtype
+          let content: unknown;
+          let role: string = m.role;
+
+          if (m.subtype === "user" || m.subtype === "assistant") {
+            content = (m as { content: unknown }).content;
+          } else if (m.subtype === "tool-call") {
+            content = (m as { toolCall: unknown }).toolCall;
+            role = "tool_call";
+          } else if (m.subtype === "tool-result") {
+            content = (m as { toolResult: unknown }).toolResult;
+            role = "tool_result";
+          }
+
+          logger.debug("Mapped message", { id: m.id, subtype: m.subtype, role, hasContent: !!content });
+
+          return {
+            id: m.id,
+            role,
+            content,
+            timestamp: m.timestamp,
+          };
+        });
+      },
     };
   }
 

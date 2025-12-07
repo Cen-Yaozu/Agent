@@ -182,7 +182,7 @@ export function useAgent(
     status === "responding" ||
     status === "tool_executing";
 
-  // Reset state when imageId changes
+  // Reset state and load messages when imageId changes
   useEffect(() => {
     setMessages(initialMessages);
     setStreaming("");
@@ -190,8 +190,43 @@ export function useAgent(
     setStatus("idle");
     agentIdRef.current = null;
     setAgentIdState(null);
+
+    // Load existing messages for this image
+    if (agentx && imageId) {
+      agentx
+        .request("image_messages_request", { imageId })
+        .then((response) => {
+          if (!mountedRef.current) return;
+          logger.info("Full response from server", { imageId, responseData: response.data, responseKeys: Object.keys(response.data || {}) });
+          const data = response.data as {
+            messages: Array<{
+              id: string;
+              role: "user" | "assistant" | "tool_call" | "tool_result";
+              content: unknown;
+              timestamp: number;
+            }>;
+          };
+          if (data.messages && data.messages.length > 0) {
+            logger.info("Raw messages from server", { imageId, messages: data.messages, firstMessage: JSON.stringify(data.messages[0]) });
+            const mappedMessages = data.messages.map((m, idx) => {
+              logger.info("Mapping message", { idx, id: m.id, role: m.role, hasContent: !!m.content });
+              return {
+                id: m.id,
+                role: m.role,
+                content: m.content as string | unknown,
+                timestamp: m.timestamp,
+              };
+            });
+            logger.info("Mapped messages", { count: mappedMessages.length, ids: mappedMessages.map(m => m.id) });
+            setMessages(mappedMessages);
+          }
+        })
+        .catch((err) => {
+          logger.error("Failed to load messages", { imageId, error: err });
+        });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imageId]);
+  }, [imageId, agentx]);
 
   // Subscribe to agent events
   useEffect(() => {

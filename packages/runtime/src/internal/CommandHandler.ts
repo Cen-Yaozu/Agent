@@ -62,6 +62,7 @@ export interface RuntimeOperations {
   listImages(containerId?: string): Promise<ImageListItemResult[]>;
   getImage(imageId: string): Promise<ImageListItemResult | null>;
   deleteImage(imageId: string): Promise<void>;
+  getImageMessages(imageId: string): Promise<Array<{ id: string; role: string; content: unknown; timestamp: number }>>;
 }
 
 /**
@@ -116,6 +117,7 @@ export class CommandHandler extends BaseEventHandler {
     this.subscribe(this.bus.onCommand("image_list_request", (event) => this.handleImageList(event)));
     this.subscribe(this.bus.onCommand("image_get_request", (event) => this.handleImageGet(event)));
     this.subscribe(this.bus.onCommand("image_delete_request", (event) => this.handleImageDelete(event)));
+    this.subscribe(this.bus.onCommand("image_messages_request", (event) => this.handleImageMessages(event)));
 
     logger.debug("Command handlers bound");
   }
@@ -405,6 +407,30 @@ export class CommandHandler extends BaseEventHandler {
       this.bus.emit(createResponse("image_delete_response", {
         requestId,
         imageId,
+        error: err instanceof Error ? err.message : String(err),
+      }));
+    }
+  }
+
+  private async handleImageMessages(event: { data: { requestId: string; imageId: string } }): Promise<void> {
+    const { requestId, imageId } = event.data;
+    logger.info("Handling image_messages_request", { requestId, imageId });
+
+    try {
+      const messages = await this.ops.getImageMessages(imageId);
+      logger.info("Got messages for image", { imageId, count: messages.length });
+      this.bus.emit(createResponse("image_messages_response", {
+        requestId,
+        imageId,
+        messages,
+      }));
+      logger.info("Emitted image_messages_response", { requestId, imageId });
+    } catch (err) {
+      logger.error("Failed to get image messages", { imageId, error: err });
+      this.bus.emit(createResponse("image_messages_response", {
+        requestId,
+        imageId,
+        messages: [],
         error: err instanceof Error ? err.message : String(err),
       }));
     }
