@@ -76,7 +76,7 @@ export type { CreateAgentOptions } from "./createAgent";
 export { createAgent } from "./createAgent";
 
 // Event handling types
-export type { AgentEventHandler, Unsubscribe } from "./internal/AgentEventHandler";
+export type { AgentOutputCallback, AgentEventHandler, Unsubscribe } from "./internal/AgentOutputCallback";
 
 // Message types
 export type {

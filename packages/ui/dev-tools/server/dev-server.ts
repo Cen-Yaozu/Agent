@@ -59,6 +59,18 @@ async function startDevServer() {
     },
   });
 
+  // Create default container for Studio (single-tenant mode)
+  try {
+    console.log("Creating default container...");
+    await agentx.request("container_create_request", {
+      containerId: "default",
+    });
+    console.log("✓ Default container created");
+  } catch (error) {
+    console.error("Failed to create default container:", error);
+    process.exit(1);
+  }
+
   // Start WebSocket server
   await agentx.listen(PORT);
 

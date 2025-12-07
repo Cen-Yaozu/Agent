@@ -35,6 +35,7 @@ import * as React from "react";
 import type { AgentX } from "agentxjs";
 import { AgentList } from "~/components/container/AgentList";
 import { Chat } from "~/components/container/Chat";
+import { ToastContainer, useToast } from "~/components/element/Toast";
 import { useImages } from "~/hooks";
 import { cn } from "~/utils";
 
@@ -84,6 +85,9 @@ export function Studio({
   const [currentAgentId, setCurrentAgentId] = React.useState<string | null>(null);
   const [currentImageId, setCurrentImageId] = React.useState<string | null>(null);
 
+  // Toast state
+  const { toasts, showToast, dismissToast } = useToast();
+
   // Images hook for snapshotting
   const { snapshotAgent, refresh: refreshImages } = useImages(agentx, {
     autoLoad: false,
@@ -111,10 +115,33 @@ export function Studio({
       const record = await snapshotAgent(currentAgentId);
       setCurrentImageId(record.imageId);
       await refreshImages();
+      showToast("Conversation saved successfully", "info");
     } catch (error) {
       console.error("Failed to save conversation:", error);
+      showToast(
+        error instanceof Error ? error.message : "Failed to save conversation",
+        "error"
+      );
     }
-  }, [currentAgentId, snapshotAgent, refreshImages]);
+  }, [currentAgentId, snapshotAgent, refreshImages, showToast]);
+
+  // Listen to agentx system_error events
+  React.useEffect(() => {
+    if (!agentx) return;
+
+    // Subscribe to system_error events
+    const unsubscribe = agentx.on("system_error", (event) => {
+      const errorData = event.data as {
+        message: string;
+        severity?: "info" | "warn" | "error" | "fatal";
+      };
+      showToast(errorData.message, errorData.severity || "error");
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [agentx, showToast]);
 
   return (
     <div className={cn("flex h-full bg-background", className)}>
@@ -142,6 +169,9 @@ export function Studio({
           inputHeightRatio={inputHeightRatio}
         />
       </div>
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} position="top-right" />
     </div>
   );
 }

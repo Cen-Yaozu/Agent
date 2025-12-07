@@ -12,7 +12,7 @@
 import type {
   AgentEngine,
   AgentState,
-  AgentEventHandler,
+  AgentOutputCallback,
   Unsubscribe,
   UserMessage,
   MessageQueue,
@@ -76,8 +76,8 @@ class SimpleAgent implements AgentEngine {
   private readonly driver: CreateAgentOptions["driver"];
   private readonly presenter: CreateAgentOptions["presenter"];
 
-  private readonly handlers: Set<AgentEventHandler> = new Set();
-  private readonly typeHandlers: Map<string, Set<AgentEventHandler>> = new Map();
+  private readonly handlers: Set<AgentOutputCallback> = new Set();
+  private readonly typeHandlers: Map<string, Set<AgentOutputCallback>> = new Map();
   private readonly stateChangeHandlers: Set<StateChangeHandler> = new Set();
   private readonly readyHandlers: Set<() => void> = new Set();
   private readonly destroyHandlers: Set<() => void> = new Set();
@@ -251,13 +251,13 @@ class SimpleAgent implements AgentEngine {
     }
   }
 
-  on(handler: AgentEventHandler): Unsubscribe;
+  on(handler: AgentOutputCallback): Unsubscribe;
   on(handlers: EventHandlerMap): Unsubscribe;
-  on(type: string, handler: AgentEventHandler): Unsubscribe;
-  on(types: string[], handler: AgentEventHandler): Unsubscribe;
+  on(type: string, handler: AgentOutputCallback): Unsubscribe;
+  on(types: string[], handler: AgentOutputCallback): Unsubscribe;
   on(
-    typeOrHandler: string | string[] | AgentEventHandler | EventHandlerMap,
-    handler?: AgentEventHandler
+    typeOrHandler: string | string[] | AgentOutputCallback | EventHandlerMap,
+    handler?: AgentOutputCallback
   ): Unsubscribe {
     // on(handler) - subscribe to all
     if (typeof typeOrHandler === "function") {

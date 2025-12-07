@@ -31,7 +31,7 @@
 
 import type { UserMessage } from "./message";
 import type { AgentState } from "./AgentState";
-import type { AgentEventHandler, Unsubscribe } from "./internal/AgentEventHandler";
+import type { AgentOutputCallback, Unsubscribe } from "./internal/AgentOutputCallback";
 import type { AgentMiddleware } from "./internal/AgentMiddleware";
 import type { AgentInterceptor } from "./internal/AgentInterceptor";
 import type { AgentOutput } from "./AgentOutput";
@@ -121,7 +121,7 @@ export interface AgentEngine {
   /**
    * Subscribe to all events
    */
-  on(handler: AgentEventHandler): Unsubscribe;
+  on(handler: AgentOutputCallback): Unsubscribe;
 
   /**
    * Batch subscribe to multiple event types
@@ -131,12 +131,12 @@ export interface AgentEngine {
   /**
    * Subscribe to specific event type by name
    */
-  on(type: string, handler: AgentEventHandler): Unsubscribe;
+  on(type: string, handler: AgentOutputCallback): Unsubscribe;
 
   /**
    * Subscribe to multiple event types by name
    */
-  on(types: string[], handler: AgentEventHandler): Unsubscribe;
+  on(types: string[], handler: AgentOutputCallback): Unsubscribe;
 
   /**
    * Subscribe to state changes

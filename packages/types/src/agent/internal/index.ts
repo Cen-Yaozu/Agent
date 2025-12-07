@@ -12,4 +12,4 @@ export type { AgentMiddleware, AgentMiddlewareNext } from "./AgentMiddleware";
 export type { AgentInterceptor, AgentInterceptorNext } from "./AgentInterceptor";
 
 // Event handling (also re-exported from public for convenience)
-export type { AgentEventHandler, Unsubscribe } from "./AgentEventHandler";
+export type { AgentOutputCallback, AgentEventHandler, Unsubscribe } from "./AgentOutputCallback";

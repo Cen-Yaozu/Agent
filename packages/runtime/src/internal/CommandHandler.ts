@@ -13,7 +13,8 @@
  */
 
 import type { SystemBus } from "@agentxjs/types/runtime/internal";
-import type { SystemEvent, SystemError } from "@agentxjs/types/event";
+import type { SystemEvent } from "@agentxjs/types/event";
+import { BaseEventHandler } from "./BaseEventHandler";
 import { createLogger } from "@agentxjs/common";
 
 const logger = createLogger("runtime/CommandHandler");
@@ -59,39 +60,13 @@ function createResponse<T extends string, D>(type: T, data: D): SystemEvent {
 }
 
 /**
- * Helper to create an error event
- */
-function createErrorEvent(
-  message: string,
-  requestId?: string,
-  severity: "info" | "warn" | "error" | "fatal" = "error",
-  details?: unknown
-): SystemError {
-  return {
-    type: "system_error",
-    timestamp: Date.now(),
-    data: {
-      message,
-      requestId,
-      severity,
-      details,
-    },
-    source: "command",
-    category: "error",
-    intent: "notification",
-  };
-}
-
-/**
  * CommandHandler - Event handler for command events
  */
-export class CommandHandler {
-  private readonly bus: SystemBus;
+export class CommandHandler extends BaseEventHandler {
   private readonly ops: RuntimeOperations;
-  private readonly unsubscribes: (() => void)[] = [];
 
   constructor(bus: SystemBus, operations: RuntimeOperations) {
-    this.bus = bus;
+    super(bus);
     this.ops = operations;
     this.bindHandlers();
     logger.debug("CommandHandler created");
@@ -100,35 +75,29 @@ export class CommandHandler {
   /**
    * Bind all command handlers to the bus
    */
-  private bindHandlers(): void {
+  protected bindHandlers(): void {
     // Container commands
-    this.unsubscribes.push(
-      this.bus.onCommand("container_create_request", (event) => this.handleContainerCreate(event)),
-      this.bus.onCommand("container_get_request", (event) => this.handleContainerGet(event)),
-      this.bus.onCommand("container_list_request", (event) => this.handleContainerList(event)),
-    );
+    this.subscribe(this.bus.onCommand("container_create_request", (event) => this.handleContainerCreate(event)));
+    this.subscribe(this.bus.onCommand("container_get_request", (event) => this.handleContainerGet(event)));
+    this.subscribe(this.bus.onCommand("container_list_request", (event) => this.handleContainerList(event)));
 
     // Agent commands
-    this.unsubscribes.push(
-      this.bus.onCommand("agent_run_request", (event) => this.handleAgentRun(event)),
-      this.bus.onCommand("agent_get_request", (event) => this.handleAgentGet(event)),
-      this.bus.onCommand("agent_list_request", (event) => this.handleAgentList(event)),
-      this.bus.onCommand("agent_destroy_request", (event) => this.handleAgentDestroy(event)),
-      this.bus.onCommand("agent_destroy_all_request", (event) => this.handleAgentDestroyAll(event)),
-      this.bus.onCommand("agent_receive_request", (event) => this.handleAgentReceive(event)),
-      this.bus.onCommand("agent_interrupt_request", (event) => this.handleAgentInterrupt(event)),
-    );
+    this.subscribe(this.bus.onCommand("agent_run_request", (event) => this.handleAgentRun(event)));
+    this.subscribe(this.bus.onCommand("agent_get_request", (event) => this.handleAgentGet(event)));
+    this.subscribe(this.bus.onCommand("agent_list_request", (event) => this.handleAgentList(event)));
+    this.subscribe(this.bus.onCommand("agent_destroy_request", (event) => this.handleAgentDestroy(event)));
+    this.subscribe(this.bus.onCommand("agent_destroy_all_request", (event) => this.handleAgentDestroyAll(event)));
+    this.subscribe(this.bus.onCommand("agent_receive_request", (event) => this.handleAgentReceive(event)));
+    this.subscribe(this.bus.onCommand("agent_interrupt_request", (event) => this.handleAgentInterrupt(event)));
 
     // Image commands
-    this.unsubscribes.push(
-      this.bus.onCommand("image_snapshot_request", (event) => this.handleImageSnapshot(event)),
-      this.bus.onCommand("image_list_request", (event) => this.handleImageList(event)),
-      this.bus.onCommand("image_get_request", (event) => this.handleImageGet(event)),
-      this.bus.onCommand("image_delete_request", (event) => this.handleImageDelete(event)),
-      this.bus.onCommand("image_resume_request", (event) => this.handleImageResume(event)),
-    );
+    this.subscribe(this.bus.onCommand("image_snapshot_request", (event) => this.handleImageSnapshot(event)));
+    this.subscribe(this.bus.onCommand("image_list_request", (event) => this.handleImageList(event)));
+    this.subscribe(this.bus.onCommand("image_get_request", (event) => this.handleImageGet(event)));
+    this.subscribe(this.bus.onCommand("image_delete_request", (event) => this.handleImageDelete(event)));
+    this.subscribe(this.bus.onCommand("image_resume_request", (event) => this.handleImageResume(event)));
 
-    logger.debug("Command handlers bound", { count: this.unsubscribes.length });
+    logger.debug("Command handlers bound");
   }
 
   // ==================== Container Handlers ====================
@@ -181,31 +150,32 @@ export class CommandHandler {
     const { requestId, containerId, config } = event.data;
     logger.info("Handling agent_run_request", { requestId, containerId, name: config.name });
 
-    try {
-      const agent = await this.ops.runAgent(containerId, config);
-      logger.info("Agent created successfully", { requestId, containerId, agentId: agent.agentId });
-      this.bus.emit(createResponse("agent_run_response", {
+    await this.safeHandleAsync(
+      async () => {
+        const agent = await this.ops.runAgent(containerId, config);
+        logger.info("Agent created successfully", { requestId, containerId, agentId: agent.agentId });
+        this.bus.emit(createResponse("agent_run_response", {
+          requestId,
+          containerId,
+          agentId: agent.agentId,
+        }));
+      },
+      {
+        source: "command",
         requestId,
-        containerId,
-        agentId: agent.agentId,
-      }));
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.error("Failed to create agent", { requestId, containerId, error: errorMessage });
-
-      // Emit response with error field (for backward compatibility)
-      this.bus.emit(createResponse("agent_run_response", {
-        requestId,
-        containerId,
-        error: errorMessage,
-      }));
-
-      // Emit error event (for UI notification)
-      this.bus.emit(createErrorEvent(errorMessage, requestId, "error", {
-        containerId,
         operation: "agent_run",
-      }));
-    }
+        severity: "error",
+        details: { containerId, name: config.name },
+        onError: (err) => {
+          // Emit error response (语法糖)
+          this.bus.emit(createResponse("agent_run_response", {
+            requestId,
+            containerId,
+            error: err instanceof Error ? err.message : String(err),
+          }));
+        },
+      }
+    );
   }
 
   private handleAgentGet(event: { data: { requestId: string; agentId: string } }): void {
@@ -407,16 +377,5 @@ export class CommandHandler {
     }
   }
 
-  // ==================== Lifecycle ====================
-
-  /**
-   * Dispose handler and unsubscribe from all events
-   */
-  dispose(): void {
-    for (const unsubscribe of this.unsubscribes) {
-      unsubscribe();
-    }
-    this.unsubscribes.length = 0;
-    logger.debug("CommandHandler disposed");
-  }
+  // Lifecycle is handled by BaseEventHandler.dispose()
 }

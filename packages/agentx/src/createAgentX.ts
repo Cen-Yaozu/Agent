@@ -24,6 +24,7 @@ import type { WebSocket as WS, WebSocketServer as WSS } from "ws";
 import { createLogger } from "@agentxjs/common";
 
 const logger = createLogger("agentx/createAgentX");
+const remoteLogger = createLogger("agentx/RemoteClient");
 
 /**
  * Create AgentX instance
@@ -209,15 +210,31 @@ async function createRemoteAgentX(serverUrl: string): Promise<AgentX> {
         : (data as Buffer).toString();
       const event = JSON.parse(text) as SystemEvent;
 
+      remoteLogger.info("Received event", { type: event.type, category: event.category, requestId: (event.data as any)?.requestId });
+
+      // Handle error events - log as error (but still dispatch to handlers)
+      if (event.type === "system_error") {
+        const errorData = event.data as { message: string; severity?: string; details?: unknown };
+        remoteLogger.error(errorData.message, {
+          severity: errorData.severity,
+          requestId: (event.data as any)?.requestId,
+          details: errorData.details,
+        });
+        // Continue to dispatch to handlers (don't return here)
+      }
+
       // Check if it's a response to a pending request
+      // Only response events (category === "response") should resolve pending requests
       const requestId = (event.data as { requestId?: string })?.requestId;
-      if (requestId && pendingRequests.has(requestId)) {
+      if (event.category === "response" && requestId && pendingRequests.has(requestId)) {
+        remoteLogger.info("Resolving pending request", { requestId, eventType: event.type });
         const pending = pendingRequests.get(requestId)!;
         clearTimeout(pending.timer);
         pendingRequests.delete(requestId);
         pending.resolve(event);
         return;
       }
+      remoteLogger.info("Dispatching to handlers", { type: event.type });
 
       // Dispatch to handlers
       const typeHandlers = handlers.get(event.type);
