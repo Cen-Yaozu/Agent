@@ -1,5 +1,9 @@
 # AgentX Documentation
 
+> **AgentX** - 下一代开源 AI 智能体开发框架与运行时平台
+>
+> Next-generation open-source AI agent development framework and runtime platform
+
 The single source of truth for AgentX. All documentation is maintained in Markdown format and can be rendered by any framework.
 
 ## Structure

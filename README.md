@@ -1,13 +1,17 @@
 <div align="center">
-  <h1>AgentX · AI Agent Runtime</h1>
+  <h1>AgentX</h1>
   <p>
-    <strong>Deploy AI Agents in seconds, or build your own with our framework</strong>
+    <strong>Next-generation open-source AI agent development framework and runtime platform</strong>
   </p>
+  <p>下一代开源 AI 智能体开发框架与运行时平台</p>
 
-  <hr/>
+  <p>
+    <b>Event-driven Runtime</b> · <b>Simple Framework</b> · <b>Minimal UI</b> · <b>Ready-to-use Portal</b>
+  </p>
 
   <p>
     <a href="https://github.com/Deepractice/AgentX"><img src="https://img.shields.io/github/stars/Deepractice/AgentX?style=social" alt="Stars"/></a>
+    <img src="https://visitor-badge.laobi.icu/badge?page_id=Deepractice.AgentX" alt="Views"/>
     <a href="LICENSE"><img src="https://img.shields.io/github/license/Deepractice/AgentX?color=blue" alt="License"/></a>
     <a href="https://www.npmjs.com/package/agentxjs"><img src="https://img.shields.io/npm/v/agentxjs?color=cb3837&logo=npm" alt="npm"/></a>
     <a href="https://hub.docker.com/r/deepracticexs/portagent"><img src="https://img.shields.io/docker/pulls/deepracticexs/portagent?logo=docker" alt="Docker"/></a>
@@ -54,106 +58,132 @@ Open <http://localhost:5200> and start chatting!
 
 ## 🛠️ Build with AgentX
 
-AgentX is a TypeScript framework for building AI Agent applications with Docker-style lifecycle management.
+AgentX is a TypeScript framework for building AI Agent applications with event-driven architecture.
+
+**Server-side (Node.js)**
 
 ```typescript
 import { createAgentX } from "agentxjs";
 
-// Create AgentX instance
+// Create AgentX instance with WebSocket server
 const agentx = await createAgentX({
   llm: {
-    apiKey: process.env.LLM_PROVIDER_KEY,
-    baseUrl: process.env.LLM_PROVIDER_URL,
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    baseUrl: process.env.ANTHROPIC_BASE_URL,
   },
+  storage: { driver: "fs", path: "./data" },
 });
 
-// Create session and start chatting
-const session = await agentx.sessions.create("default-image", "user-1");
-const agent = await session.resume();
-
-// Subscribe to events
-agent.react({
-  onTextDelta: (e) => process.stdout.write(e.data.text),
-  onAssistantMessage: (e) => console.log("\n[Done]"),
+// Create container for agents
+await agentx.request("container_create_request", {
+  containerId: "default",
 });
 
-await agent.receive("Hello!");
+// Start WebSocket server
+await agentx.listen(5200);
+console.log("✓ Server running on ws://localhost:5200");
 ```
 
-### Key Features
+**Client-side (Browser/React)**
 
-| Feature                    | Description                                                 |
-| -------------------------- | ----------------------------------------------------------- |
-| **Docker-style Lifecycle** | Define → Image → Session, commit & resume conversations     |
-| **4-Layer Events**         | Stream, State, Message, Turn - each for different consumers |
-| **Isomorphic**             | Same API for Server (Node.js) and Browser                   |
-| **Type-safe**              | 140+ TypeScript definition files                            |
+```typescript
+import { useAgentX } from "@agentxjs/ui";
 
----
+function ChatApp() {
+  const agentx = useAgentX("ws://localhost:5200");
 
-## 📦 Packages
+  if (!agentx) return <div>Connecting...</div>;
+
+  return <Studio agentx={agentx} />;
+}
+```
+
+**UI Components**
 
 ```bash
-npm install agentxjs @agentxjs/runtime
+npm install @agentxjs/ui
 ```
 
-| Package             | Description                             |
-| ------------------- | --------------------------------------- |
-| `agentxjs`          | Core framework and platform API         |
-| `@agentxjs/runtime` | Node.js runtime (Claude driver, SQLite) |
-| `@agentxjs/ui`      | React UI components                     |
-| `@agentxjs/types`   | TypeScript definitions                  |
+Production-ready React components with Tailwind CSS:
+
+- `<Studio>` - Complete chat workspace (AgentList + Chat)
+- `<Chat>` - Chat interface with message history
+- `<AgentList>` - Agent/session list with search
+- `useAgentX()` - React hook for server connection
+
+👉 **[Full AgentX Documentation](./docs/README.md)** - Architecture, API reference, guides, and examples
 
 ---
 
-## 📚 Documentation
+## 🏗️ Architecture
 
-<table>
-  <tr>
-    <td><strong>Getting Started</strong></td>
-    <td><a href="./docs/getting-started/installation.md">Installation</a> · <a href="./docs/getting-started/quickstart.md">Quickstart</a> · <a href="./docs/getting-started/first-agent.md">First Agent</a></td>
-  </tr>
-  <tr>
-    <td><strong>Core Concepts</strong></td>
-    <td><a href="./docs/concepts/lifecycle.md">Lifecycle</a> · <a href="./docs/concepts/event-system.md">Event System</a> · <a href="./docs/concepts/mealy-machine.md">Mealy Machine</a></td>
-  </tr>
-  <tr>
-    <td><strong>Deployment</strong></td>
-    <td><a href="./apps/portagent/README.md">Portagent</a> · <a href="./apps/portagent/docker-compose.yml">Docker Compose</a></td>
-  </tr>
-</table>
+Event-driven architecture with layered design:
 
----
+```
+SERVER SIDE                      SYSTEMBUS                   CLIENT SIDE
+═══════════════════════════════════════════════════════════════════════════
 
-## 🗺️ Roadmap
+                                     ║
+┌─────────────────┐                  ║
+│  Environment    │                  ║
+│  • LLMProvider  │      emit        ║
+│  • Sandbox      │─────────────────>║
+└─────────────────┘                  ║
+                                     ║
+                                     ║
+┌─────────────────┐    subscribe     ║
+│  Agent Layer    │<─────────────────║
+│  • AgentEngine  │                  ║
+│  • Agent        │      emit        ║
+│                 │─────────────────>║         ┌─────────────────┐
+│  4-Layer Events │                  ║         │                 │
+│  • Stream       │                  ║ broadcast │  WebSocket   │
+│  • State        │                  ║════════>│ (Event Stream)  │
+│  • Message      │                  ║<════════│                 │
+│  • Turn         │                  ║  input  │  AgentX API     │
+└─────────────────┘                  ║         └─────────────────┘
+                                     ║
+                                     ║
+┌─────────────────┐                  ║
+│  Runtime Layer  │                  ║
+│                 │      emit        ║
+│  • Persistence  │─────────────────>║
+│  • Container    │                  ║
+│  • WebSocket    │<─────────────────╫
+│                 │─────────────────>║
+└─────────────────┘                  ║
+                                     ║
+                              [ Event Bus ]
+                             [ RxJS Pub/Sub ]
 
-- [x] Docker-style lifecycle (Definition → Image → Session)
-- [x] 4-layer event system
-- [x] Server/Browser isomorphic architecture
-- [x] Claude driver (via Claude Agent SDK)
-- [ ] OpenAI driver
-- [ ] Local LLM support (Ollama)
-- [ ] Multi-agent orchestration
-- [ ] Plugin system
-
----
-
-## 🤝 Contributing
-
-```bash
-git clone https://github.com/Deepractice/AgentX.git
-cd AgentX
-pnpm install
-pnpm dev
+Event Flow:
+  → Input:  Client → WebSocket → BUS → Claude SDK
+  ← Output: SDK → BUS → AgentEngine → BUS → Client
 ```
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
-
 ---
 
-## 📄 License
+## 💬 About
 
-MIT - see [LICENSE](./LICENSE)
+AgentX is in early development. We welcome your ideas, feedback, and feature requests!
+
+### 🌐 Ecosystem
+
+Part of the Deepractice AI development ecosystem:
+
+- **[PromptX](https://github.com/Deepractice/PromptX)** - Prompt engineering and management framework
+- **[DPML](https://github.com/Deepractice/dpml)** - Deepractice Markup Language for AI workflows
+- **[DARP](https://github.com/Deepractice/DARP)** - Deepractice Agent Runtime Protocol
+- **[Lucid-UI](https://github.com/Deepractice/Lucid-UI)** - AI-powered UI component library
+
+### 📞 Connect
+
+<div align="center">
+  <p><strong>Connect with the Founder</strong></p>
+  <p>📧 <a href="mailto:sean@deepractice.ai">sean@deepractice.ai</a></p>
+  <img src="https://brands.deepractice.ai/images/sean-wechat-qrcode.jpg" alt="WeChat QR Code" width="200"/>
+  <p><em>Scan to connect with Sean (Founder & CEO) on WeChat</em></p>
+</div>
 
 ---
 
