@@ -146,7 +146,6 @@ cd apps/portagent && pnpm dev
 Environment (`.env.local`):
 
 ```env
-PORTAGENT_PASSWORD=your-password
 LLM_PROVIDER_KEY=sk-ant-xxxxx
 ```
 

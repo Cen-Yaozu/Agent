@@ -45,7 +45,6 @@
     "LOG_LEVEL",
     "DATABASE_PATH",
     "VITE_CONTEXT_WINDOW",
-    "PORTAGENT_PASSWORD",
     "JWT_SECRET"
   ]
 }

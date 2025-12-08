@@ -34,7 +34,6 @@ program
   .option("-p, --port <port>", "Port to listen on", "5200")
   .option("-d, --data-dir <path>", "Data directory (default: ~/.agentx)")
   .option("-e, --env-file <path>", "Path to environment file")
-  .option("--password <password>", "Set login password (or use PORTAGENT_PASSWORD env var)")
   .option("--jwt-secret <secret>", "JWT secret for token signing (or use JWT_SECRET env var)")
   .option("--api-key <key>", "LLM provider API key (or use LLM_PROVIDER_KEY env var)")
   .option("--api-url <url>", "LLM provider base URL (or use LLM_PROVIDER_URL env var)")
@@ -55,9 +54,8 @@ program
     }
 
     // Set data directory (CLI > env > default)
-    const dataDir =
-      options.dataDir || process.env.PORTAGENT_DATA_DIR || resolve(homedir(), ".agentx");
-    process.env.PORTAGENT_DATA_DIR = dataDir;
+    const dataDir = options.dataDir || process.env.DATA_DIR || resolve(homedir(), ".agentx");
+    process.env.DATA_DIR = dataDir;
 
     // Ensure directories exist
     const dataDirPath = resolve(dataDir, "data");
@@ -68,9 +66,6 @@ program
     // Set environment variables from CLI options (override env file)
     if (options.port) {
       process.env.PORT = options.port;
-    }
-    if (options.password) {
-      process.env.PORTAGENT_PASSWORD = options.password;
     }
     if (options.jwtSecret) {
       process.env.JWT_SECRET = options.jwtSecret;

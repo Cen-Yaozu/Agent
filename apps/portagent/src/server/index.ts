@@ -34,7 +34,7 @@ import { PinoLoggerFactory } from "./logger";
 
 /**
  * Get data directory paths
- * Uses PORTAGENT_DATA_DIR env var, or defaults to ~/.agentx
+ * Uses DATA_DIR env var, or defaults to ~/.agentx
  *
  * Directory structure:
  *   data-dir/
@@ -45,7 +45,7 @@ import { PinoLoggerFactory } from "./logger";
  *       └── portagent.log
  */
 function getDataPaths() {
-  const dataDir = process.env.PORTAGENT_DATA_DIR || join(homedir(), ".agentx");
+  const dataDir = process.env.DATA_DIR || join(homedir(), ".agentx");
   const dataDirPath = join(dataDir, "data");
   const logsDirPath = join(dataDir, "logs");
 

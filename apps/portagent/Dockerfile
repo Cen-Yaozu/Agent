@@ -20,7 +20,7 @@ RUN addgroup -g 1001 -S agentx && \
 ENV NODE_ENV=production
 ENV PORT=5200
 ENV LOG_LEVEL=info
-ENV AGENTX_DATA_DIR=/home/agentx/.agentx
+ENV DATA_DIR=/home/agentx/.agentx
 
 # Environment - Required (must be provided at runtime)
 # LLM_PROVIDER_KEY=sk-ant-xxxxx    # Anthropic API key
