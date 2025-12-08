@@ -8,6 +8,9 @@
   <p>
     <b>Event-driven Runtime</b> · <b>Simple Framework</b> · <b>Minimal UI</b> · <b>Ready-to-use Portal</b>
   </p>
+  <p>
+    <b>事件驱动</b> · <b>简易开发</b> · <b>界面简约</b> · <b>开箱即用</b>
+  </p>
 
   <p>
     <a href="https://github.com/Deepractice/AgentX"><img src="https://img.shields.io/github/stars/Deepractice/AgentX?style=social" alt="Stars"/></a>
