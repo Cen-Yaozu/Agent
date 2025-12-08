@@ -15,7 +15,7 @@ services:
       - PORT=5200
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - JWT_SECRET=${JWT_SECRET}
-      - INVITE_CODE_REQUIRED=${INVITE_CODE_REQUIRED:-true}
+      - INVITE_CODE_REQUIRED=${INVITE_CODE_REQUIRED:-false}
       - DATA_DIR=/home/agentx/.agentx
     volumes:
       - ./data:/home/agentx/.agentx

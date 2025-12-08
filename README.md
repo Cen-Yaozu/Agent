@@ -1,19 +1,16 @@
 <div align="center">
-  <h1>AgentX · Agent Runtime, Docker Style</h1>
+  <h1>AgentX · AI Agent Runtime</h1>
   <p>
-    <strong>Manage AI Agents like containers - commit, resume, fork your conversations</strong>
-  </p>
-  <p>
-    <strong>Key Features:</strong> Docker-style Lifecycle | 4-Layer Event System | Isomorphic Architecture
+    <strong>Deploy AI Agents in seconds, or build your own with our framework</strong>
   </p>
 
   <hr/>
 
   <p>
     <a href="https://github.com/Deepractice/AgentX"><img src="https://img.shields.io/github/stars/Deepractice/AgentX?style=social" alt="Stars"/></a>
-    <img src="https://komarev.com/ghpvc/?username=Agent&label=views&color=0e75b6&style=flat&abbreviated=true" alt="Views"/>
     <a href="LICENSE"><img src="https://img.shields.io/github/license/Deepractice/AgentX?color=blue" alt="License"/></a>
     <a href="https://www.npmjs.com/package/agentxjs"><img src="https://img.shields.io/npm/v/agentxjs?color=cb3837&logo=npm" alt="npm"/></a>
+    <a href="https://hub.docker.com/r/deepracticexs/portagent"><img src="https://img.shields.io/docker/pulls/deepracticexs/portagent?logo=docker" alt="Docker"/></a>
   </p>
 
   <p>
@@ -24,299 +21,116 @@
 
 ---
 
-## What is AgentX?
+## 🚀 Quick Start
 
-AgentX is an **AI Agent runtime framework** that brings Docker-style lifecycle management to AI Agents.
+Run your AI Agent gateway in one command:
+
+```bash
+docker run -d \
+  --name portagent \
+  -p 5200:5200 \
+  -e LLM_PROVIDER_KEY=sk-ant-xxxxx \
+  -e LLM_PROVIDER_URL=https://api.anthropic.com \
+  -v ./data:/home/agentx/.agentx \
+  deepracticexs/portagent:latest
+```
+
+Open <http://localhost:5200> and start chatting!
+
+![Portagent Demo](./apps/portagent/public/Portagent.gif)
+
+### What You Get
+
+- **Multi-User Support** - User registration (invite code optional)
+- **Session Persistence** - Resume conversations anytime
+- **Real-time Streaming** - WebSocket-based communication
+- **Docker Ready** - Production-ready with health checks
+
+> **Tip:** Add `-e INVITE_CODE_REQUIRED=true` to enable invite code protection.
+
+👉 **[Full Portagent Documentation](./apps/portagent/README.md)** - Configuration, deployment, API reference
+
+---
+
+## 🛠️ Build with AgentX
+
+AgentX is a TypeScript framework for building AI Agent applications with Docker-style lifecycle management.
 
 ```typescript
-import { defineAgent, createAgentX } from "agentxjs";
-import { runtime } from "@agentxjs/node-runtime";
+import { createAgentX } from "agentxjs";
 
-// 1. Define your agent (like Dockerfile)
-const TranslatorAgent = defineAgent({
-  name: "Translator",
-  systemPrompt: "You are a professional translator.",
+// Create AgentX instance
+const agentx = await createAgentX({
+  llm: {
+    apiKey: process.env.LLM_PROVIDER_KEY,
+    baseUrl: process.env.LLM_PROVIDER_URL,
+  },
 });
 
-// 2. Create platform with runtime
-const agentx = createAgentX(runtime);
-
-// 3. Register and run
-agentx.definitions.register(TranslatorAgent);
-const image = await agentx.images.getMetaImage("Translator");
-const session = await agentx.sessions.create(image.imageId, "user-1");
+// Create session and start chatting
+const session = await agentx.sessions.create("default-image", "user-1");
 const agent = await session.resume();
 
-// 4. Subscribe to events and chat
+// Subscribe to events
 agent.react({
   onTextDelta: (e) => process.stdout.write(e.data.text),
   onAssistantMessage: (e) => console.log("\n[Done]"),
 });
 
-await agent.receive("Translate 'Hello' to Japanese");
-```
-
----
-
-## Why AgentX?
-
-| Challenge                      | AgentX Solution                                              |
-| ------------------------------ | ------------------------------------------------------------ |
-| Agent state is ephemeral       | **Docker-style Images** - commit, resume, fork conversations |
-| Server/Browser code differs    | **Isomorphic Architecture** - same API everywhere            |
-| Hard to track streaming events | **4-Layer Event System** - Stream, State, Message, Turn      |
-| Complex async state management | **Mealy Machine** - pure functional event processing         |
-
----
-
-## Core Concepts
-
-### Docker-Style Lifecycle
-
-```
-AgentDefinition ──register──▶ MetaImage ──create──▶ Session + Agent
-      │                           │                        │
-   (source)                   (genesis)               (running)
-                                  │                        │
-                                  │◀──────commit───────────┘
-                                  │
-                            DerivedImage ──fork──▶ New Session
-                              (snapshot)
-```
-
-| Docker          | AgentX                       | Description                      |
-| --------------- | ---------------------------- | -------------------------------- |
-| Dockerfile      | `defineAgent()`              | Source template                  |
-| Image           | `MetaImage` / `DerivedImage` | Built artifact with frozen state |
-| Container       | `Session` + `Agent`          | Running instance                 |
-| `docker commit` | `session.commit()`           | Save current state               |
-| `docker run`    | `session.resume()`           | Start from image                 |
-
-### 4-Layer Event Architecture
-
-```
-Driver.receive()
-       │ yields
-       ▼
-┌─────────────────────────────────────────────────────────┐
-│ L1: Stream Layer (real-time incremental)                │
-│ message_start → text_delta* → tool_call → message_stop  │
-└────────────────────────┬────────────────────────────────┘
-                         │ Mealy Machine
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│ L2: State Layer (state transitions)                     │
-│ thinking → responding → tool_executing → conversation_end│
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│ L3: Message Layer (complete messages)                   │
-│ user_message, assistant_message, tool_call_message      │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│ L4: Turn Layer (analytics)                              │
-│ turn_request → turn_response { duration, tokens, cost } │
-└─────────────────────────────────────────────────────────┘
-```
-
-Each layer serves different consumers:
-
-| Layer   | Consumer      | Use Case                              |
-| ------- | ------------- | ------------------------------------- |
-| Stream  | UI            | Typewriter effect, real-time display  |
-| State   | State machine | Loading indicators, progress tracking |
-| Message | Chat history  | Persistence, conversation display     |
-| Turn    | Analytics     | Billing, usage metrics, performance   |
-
-### Isomorphic Architecture
-
-Same business code runs on Server and Browser:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│              Application Code (identical)                │
-│   const agentx = createAgentX(runtime);                 │
-│   agentx.definitions.register(MyAgent);                 │
-└────────────────────────┬────────────────────────────────┘
-                         │
-         ┌───────────────┴───────────────┐
-         │                               │
-         ▼                               ▼
-┌─────────────────────┐       ┌─────────────────────┐
-│   Server Runtime    │       │   Browser Runtime   │
-│   SQLiteRepository  │       │   RemoteRepository  │
-│   ClaudeDriver      │       │   SSEDriver         │
-└─────────────────────┘       └─────────────────────┘
-```
-
----
-
-## Installation
-
-```bash
-# Core framework
-npm install agentxjs
-
-# Node.js runtime (Server)
-npm install @agentxjs/node-runtime
-
-# React UI components (optional)
-npm install @agentxjs/ui
-```
-
----
-
-## Quick Start
-
-### Basic Usage (Node.js)
-
-```typescript
-import { defineAgent, createAgentX } from "agentxjs";
-import { runtime } from "@agentxjs/node-runtime";
-
-const agentx = createAgentX(runtime);
-
-// Define and register agent
-const MyAgent = defineAgent({
-  name: "Assistant",
-  systemPrompt: "You are a helpful assistant.",
-});
-agentx.definitions.register(MyAgent);
-
-// Create session and start chatting
-const image = await agentx.images.getMetaImage("Assistant");
-const session = await agentx.sessions.create(image.imageId, "user-1");
-const agent = await session.resume();
-
-// React-style event subscription
-agent.react({
-  onTextDelta: (e) => process.stdout.write(e.data.text),
-  onToolCall: (e) => console.log(`Tool: ${e.data.name}`),
-  onError: (e) => console.error(e.data.message),
-});
-
 await agent.receive("Hello!");
-
-// Save conversation state
-await session.commit();
 ```
 
-### Event Subscription Patterns
+### Key Features
 
-```typescript
-// Pattern 1: React-style (recommended)
-agent.react({
-  onTextDelta: (e) => {},
-  onAssistantMessage: (e) => {},
-  onToolCall: (e) => {},
-});
-
-// Pattern 2: Type-safe single event
-agent.on("text_delta", (e) => {
-  console.log(e.data.text); // TypeScript knows the type
-});
-
-// Pattern 3: Batch subscription
-agent.on({
-  text_delta: (e) => {},
-  assistant_message: (e) => {},
-  error: (e) => {},
-});
-
-// Pattern 4: All events
-agent.on((event) => {
-  console.log(event.type, event.data);
-});
-```
-
-### Session Management
-
-```typescript
-// Resume from previous session
-const session = await agentx.sessions.get(sessionId);
-const agent = await session.resume();
-
-// Fork conversation (branch)
-const forkedSession = await session.fork();
-const forkedAgent = await forkedSession.resume();
-
-// List user's sessions
-const sessions = await agentx.sessions.list({ userId: "user-1" });
-```
-
-### Browser Integration (SSE)
-
-```typescript
-// Browser client connects to AgentX server
-import { createAgentX } from "agentxjs";
-import { sseRuntime } from "agentxjs/browser";
-
-const agentx = createAgentX(
-  sseRuntime({
-    serverUrl: "http://localhost:5200",
-  })
-);
-
-// Same API as server!
-const session = await agentx.sessions.create(imageId, userId);
-const agent = await session.resume();
-
-agent.react({
-  onTextDelta: (e) => setStreamingText((prev) => prev + e.data.text),
-  onAssistantMessage: (e) => setMessages((prev) => [...prev, e.data]),
-});
-```
+| Feature                    | Description                                                 |
+| -------------------------- | ----------------------------------------------------------- |
+| **Docker-style Lifecycle** | Define → Image → Session, commit & resume conversations     |
+| **4-Layer Events**         | Stream, State, Message, Turn - each for different consumers |
+| **Isomorphic**             | Same API for Server (Node.js) and Browser                   |
+| **Type-safe**              | 140+ TypeScript definition files                            |
 
 ---
 
-## Packages
-
-| Package                  | Description                                       |
-| ------------------------ | ------------------------------------------------- |
-| `@agentxjs/types`        | Type definitions (140+ files, zero dependencies)  |
-| `@agentxjs/adk`          | Agent Development Kit (defineAgent, defineDriver) |
-| `@agentxjs/common`       | SLF4J-style logging facade                        |
-| `@agentxjs/engine`       | Mealy Machine event processor                     |
-| `@agentxjs/agent`        | Agent runtime core                                |
-| `agentxjs`               | Platform API (unified entry point)                |
-| `@agentxjs/node-runtime` | Node.js runtime (Claude driver, SQLite)           |
-| `@agentxjs/ui`           | React UI components                               |
-
----
-
-## Try It Now (Docker)
-
-Want to see AgentX in action? Run the demo:
+## 📦 Packages
 
 ```bash
-docker run -d \
-  --name agentx \
-  -p 5200:5200 \
-  -e ANTHROPIC_API_KEY=sk-ant-xxxxx \
-  deepracticexs/agent:latest
+npm install agentxjs @agentxjs/runtime
 ```
 
-Open http://localhost:5200 - full-featured AI Agent with visual interface.
+| Package             | Description                             |
+| ------------------- | --------------------------------------- |
+| `agentxjs`          | Core framework and platform API         |
+| `@agentxjs/runtime` | Node.js runtime (Claude driver, SQLite) |
+| `@agentxjs/ui`      | React UI components                     |
+| `@agentxjs/types`   | TypeScript definitions                  |
 
 ---
 
-## Documentation
+## 📚 Documentation
 
-- **[Architecture Guide](./CLAUDE.md)** - Deep dive into system design
-- **[API Reference](./packages/agentx/README.md)** - Platform API documentation
-- **[Type System](./packages/agentx-types/README.md)** - Complete type definitions
+<table>
+  <tr>
+    <td><strong>Getting Started</strong></td>
+    <td><a href="./docs/getting-started/installation.md">Installation</a> · <a href="./docs/getting-started/quickstart.md">Quickstart</a> · <a href="./docs/getting-started/first-agent.md">First Agent</a></td>
+  </tr>
+  <tr>
+    <td><strong>Core Concepts</strong></td>
+    <td><a href="./docs/concepts/lifecycle.md">Lifecycle</a> · <a href="./docs/concepts/event-system.md">Event System</a> · <a href="./docs/concepts/mealy-machine.md">Mealy Machine</a></td>
+  </tr>
+  <tr>
+    <td><strong>Deployment</strong></td>
+    <td><a href="./apps/portagent/README.md">Portagent</a> · <a href="./apps/portagent/docker-compose.yml">Docker Compose</a></td>
+  </tr>
+</table>
 
 ---
 
-## Roadmap
+## 🗺️ Roadmap
 
 - [x] Docker-style lifecycle (Definition → Image → Session)
 - [x] 4-layer event system
 - [x] Server/Browser isomorphic architecture
-- [x] Claude driver
+- [x] Claude driver (via Claude Agent SDK)
 - [ ] OpenAI driver
 - [ ] Local LLM support (Ollama)
 - [ ] Multi-agent orchestration
@@ -324,29 +138,20 @@ Open http://localhost:5200 - full-featured AI Agent with visual interface.
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
 ```bash
-# Clone and install
 git clone https://github.com/Deepractice/AgentX.git
-cd Agent
+cd AgentX
 pnpm install
-
-# Development
 pnpm dev
-
-# Build all packages
-pnpm build
-
-# Type check
-pnpm typecheck
 ```
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 ---
 
-## License
+## 📄 License
 
 MIT - see [LICENSE](./LICENSE)
 
@@ -354,9 +159,6 @@ MIT - see [LICENSE](./LICENSE)
 
 <div align="center">
   <p>
-    Built with care by <a href="https://github.com/Deepractice">Deepractice</a>
-  </p>
-  <p>
-    <strong>Making AI Agent Development Simple</strong>
+    Built with ❤️ by <a href="https://github.com/Deepractice">Deepractice</a>
   </p>
 </div>

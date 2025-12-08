@@ -52,7 +52,7 @@ services:
       - LLM_PROVIDER_URL=${LLM_PROVIDER_URL:-https://api.anthropic.com}
       - LLM_PROVIDER_MODEL=${LLM_PROVIDER_MODEL:-claude-sonnet-4-20250514}
       - JWT_SECRET=${JWT_SECRET}
-      - INVITE_CODE_REQUIRED=${INVITE_CODE_REQUIRED:-true}
+      - INVITE_CODE_REQUIRED=${INVITE_CODE_REQUIRED:-false}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ./data:/home/agentx/.agentx
@@ -93,7 +93,7 @@ portagent
 | `PORT`                 | No       | `5200`                      | Server port                                 |
 | `DATA_DIR`             | No       | `~/.agentx`                 | Data directory path                         |
 | `JWT_SECRET`           | No       | Auto-generated              | Secret for JWT token signing                |
-| `INVITE_CODE_REQUIRED` | No       | `true`                      | Require invite code for registration        |
+| `INVITE_CODE_REQUIRED` | No       | `false`                     | Require invite code for registration        |
 | `LOG_LEVEL`            | No       | `info`                      | Log level: `debug`, `info`, `warn`, `error` |
 | `NODE_ENV`             | No       | `production`                | Environment mode                            |
 
@@ -156,12 +156,12 @@ console.log(inviteCode);
 
 **Note:** Docker containers typically run in UTC timezone. Make sure to calculate the invite code for the correct timezone.
 
-### Disabling Invite Codes
+### Enabling Invite Codes
 
-Set `INVITE_CODE_REQUIRED=false` to allow open registration:
+Set `INVITE_CODE_REQUIRED=true` to require invite codes for registration:
 
 ```bash
-docker run -e INVITE_CODE_REQUIRED=false ...
+docker run -e INVITE_CODE_REQUIRED=true ...
 ```
 
 ## API Endpoints
@@ -256,7 +256,7 @@ services:
     environment:
       - LLM_PROVIDER_KEY=${LLM_PROVIDER_KEY}
       - JWT_SECRET=${JWT_SECRET} # Use a strong, persistent secret
-      - INVITE_CODE_REQUIRED=true # Enable for controlled access
+      - INVITE_CODE_REQUIRED=true # Enable for production
       - LOG_LEVEL=info
     volumes:
       - ./data:/home/agentx/.agentx # Persist data

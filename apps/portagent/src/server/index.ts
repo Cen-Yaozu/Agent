@@ -66,7 +66,7 @@ function getDataPaths() {
 // Configuration from environment
 const PORT = parseInt(process.env.PORT || "5200", 10);
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomUUID();
-const INVITE_CODE_REQUIRED = process.env.INVITE_CODE_REQUIRED !== "false"; // default: true
+const INVITE_CODE_REQUIRED = process.env.INVITE_CODE_REQUIRED === "true"; // default: false
 
 /**
  * Create and configure the Hono app
